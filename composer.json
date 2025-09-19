@@ -1,0 +1,27 @@
+{
+    "name": "sudo/image-domain-replace",
+    "description": "Laravel middleware package to replace image domains and handle bucket checks.",
+    "type": "library",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Sudo Team",
+            "email": "dev@sudo.vn"
+        }
+    ],
+    "require": {
+    "php": ">=7.1|^8.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Sudo\\ImageDomainReplace\\": "src/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Sudo\\ImageDomainReplace\\ImageDomainReplaceServiceProvider"
+            ]
+        }
+    }
+}
