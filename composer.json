@@ -6,11 +6,11 @@
     "authors": [
         {
             "name": "Sudo Team",
-            "email": "dev@sudo.vn"
+            "email": "kientrang96ht@gmail.com"
         }
     ],
     "require": {
-    "php": ">=7.1|^8.0"
+        "php": ">=7.1|^8.0"
     },
     "autoload": {
         "psr-4": {
@@ -23,5 +23,7 @@
                 "Sudo\\ImageDomainReplace\\ImageDomainReplaceServiceProvider"
             ]
         }
-    }
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true
 }
