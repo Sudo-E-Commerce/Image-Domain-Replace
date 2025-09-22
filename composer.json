@@ -1,5 +1,5 @@
 {
-    "name": "sudo/image-domain-replace",
+    "name": "sudo-ecommerce/image-domain-replace",
     "description": "Laravel middleware package to replace image domains and handle bucket checks.",
     "type": "library",
     "license": "MIT",
