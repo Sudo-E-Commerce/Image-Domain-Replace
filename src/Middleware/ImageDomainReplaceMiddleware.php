@@ -10,14 +10,10 @@ use Intervention\Image\Facades\Image;
 
 class ImageDomainReplaceMiddleware
 {
-    protected $oldDomains = [
-        'https://resize.sudospaces.com',
-        'https://sudospaces.com',
-        'https://cdn',
-        'https://img.fastmobile.vn',
-        'https://karofi',
-        'https://storage.sudospaces.com'
-    ];
+    protected $oldDomains;
+    protected $regexPatterns;
+
+    protected $newDomain;
 
     protected $imageSize = [
         30,40,50,60,70,80,90,
@@ -32,7 +28,16 @@ class ImageDomainReplaceMiddleware
         900,960,1000,1020,1050,1080,1100,1150,1200,1250,1300,1350,1400
     ];
 
-    protected $newDomain;
+    public function __construct()
+    {
+        // Get old domains from config/env
+        $domainsString = config('image-domain-replace.old_domains', env('IMAGE_OLD_DOMAINS', ''));
+        $this->oldDomains = array_filter(array_map('trim', explode(',', $domainsString)));
+        
+        // Get regex patterns from config/env (just the prefixes like: resize, cdn, storage, karofi)
+        $patternsString = config('image-domain-replace.regex_patterns', env('IMAGE_REGEX_PATTERNS', ''));
+        $this->regexPatterns = array_filter(array_map('trim', explode(',', $patternsString)));
+    }
 
     public function handle($request, Closure $next)
     {
@@ -69,7 +74,24 @@ class ImageDomainReplaceMiddleware
 
     protected function replaceImageDomains($content)
     {
-        $pattern = '/https?:\\/\\/((?:resize\\.|cdn\\.|img\\.|karofi\\.|storage\\.)?sudospaces\\.com|cdn[^"\'\s]*|img[^"\'\s]*|karofi[^"\'\s]*|storage[^"\'\s]*)[^"\'\s]*/i';
+        // Build dynamic pattern from configured domains and patterns
+        $allPatterns = [];
+        
+        // Add old domains (escape them for regex)
+        foreach ($this->oldDomains as $domain) {
+            $allPatterns[] = preg_quote($domain, '/');
+        }
+        
+        // Add regex patterns for subdomains (like resize., cdn., storage., etc.)
+        foreach ($this->regexPatterns as $prefix) {
+            $allPatterns[] = '(?:' . preg_quote($prefix, '/') . '\\.|)sudospaces\\.com';
+            $allPatterns[] = preg_quote($prefix, '/') . '[^"\'\s]*';
+        }
+        
+        if (empty($allPatterns)) {
+            return $content; // No patterns configured, return content unchanged
+        }
+        $pattern = '/https?:\\/\\/(' . implode('|', $allPatterns) . ')[^"\'\s]*/i';
 
         return preg_replace_callback($pattern, function ($matches) {
             $url = $matches[0];

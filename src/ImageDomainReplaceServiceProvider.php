@@ -8,7 +8,9 @@ class ImageDomainReplaceServiceProvider extends ServiceProvider
 {
     public function register()
     {
-        //
+        // Ghi đè cấu hình để thêm 'use_path_style_endpoint' cho S3 và DO
+        config()->set('filesystems.disks.s3.use_path_style_endpoint', true);
+        config()->set('filesystems.disks.do.use_path_style_endpoint', true);
     }
 
     public function boot()
