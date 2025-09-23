@@ -97,9 +97,7 @@ class ImageDomainReplaceMiddleware
             $url = $matches[0];
             foreach ($this->oldDomains as $oldDomain) {
                 if (strpos($url, $oldDomain) !== false) {
-                    if (strpos($url, 'resize.sudospaces.com') !== false) {
-                        $url = str_replace('resize.sudospaces.com', $this->newDomain, $url);
-                    } else {
+                    if (strpos($url, $oldDomain) !== false) {
                         $url = preg_replace('/' . preg_quote($oldDomain, '/') . '/i', $this->newDomain, $url);
                     }
                 }
