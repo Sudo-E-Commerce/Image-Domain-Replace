@@ -44,10 +44,6 @@ class ImageDomainReplaceMiddleware
         $this->newDomain = config('image-domain-replace.new_domain', 'your.newdomain.com');
         $response = $next($request);
 
-        // Skip processing for admin routes
-        if ($request->is('admin/*') || $request->is('admin')) {
-            return $response;
-        }
         // Skip processing for AJAX requests or API routes
         if ($request->ajax() || $request->expectsJson() || $request->is('ajax/*') || $request->is('api/*') || $request->is('image/*')) {
             return $response;
@@ -55,11 +51,15 @@ class ImageDomainReplaceMiddleware
 
         if (method_exists($response, 'getContent') && $this->isHtmlResponse($response)) {
             $content = $response->getContent();
+            
+            // Always apply domain replacement
             $content = $this->replaceImageDomains($content);
 
-            // Add fallback script before closing body tag
-            $script = $this->getFallbackScript();
-            $content = str_replace('</body>', $script . '</body>', $content);
+            // Only add fallback script if NOT admin or scms routes
+            if (!$request->is('admin/*') && !$request->is('admin') && !$request->is('scms/*')) {
+                $script = $this->getFallbackScript();
+                $content = str_replace('</body>', $script . '</body>', $content);
+            }
 
             $response->setContent($content);
         }
