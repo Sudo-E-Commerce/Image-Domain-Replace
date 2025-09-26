@@ -45,8 +45,24 @@ class ImageDomainReplaceMiddleware
         $response = $next($request);
 
         // Skip processing for AJAX requests or API routes
-        if ($request->ajax() || $request->expectsJson() || $request->is('ajax/*') || $request->is('api/*') || $request->is('image/*')) {
+        if ($request->is('api/*') || $request->is('image/*')) {
             return $response;
+        }
+
+        //check response is json 
+        if ($request->ajax()) {
+            $content = $response->getContent();
+            $arrayContent = json_decode($content, true);
+            if (json_last_error() === JSON_ERROR_NONE && is_array($arrayContent)) {
+                array_walk_recursive($arrayContent, function (&$item, $key) {
+                    if (is_string($item)) {
+                        $item = $this->replaceImageDomains($item);
+                        // Check and create in bucket if needed
+                        $item = $this->checkOrCreateInBucket($item);
+                    }
+                });
+                $response->setContent(json_encode($arrayContent));
+            }
         }
 
         if (method_exists($response, 'getContent') && $this->isHtmlResponse($response)) {
