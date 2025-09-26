@@ -1,8 +1,8 @@
 function onErrorImage() {
     document.querySelectorAll("img").forEach(function (img) {
         img.onerror = function () {
-            const fallbackImageUrl =
-                "/vendor/core/core/base/img/placeholder.png";
+            const fallbackImageUrl = "/vendor/core/core/base/img/placeholder.png";
+            
             if (!img.hasOwnProperty("errorCount")) {
                 img.errorCount = 0;
             }
@@ -13,13 +13,25 @@ function onErrorImage() {
                 // Giới hạn số lần thử thay thế ảnh
                 // console.error('Image replacement failed too many times:', img.src)
                 img.src = fallbackImageUrl;
+                
+                // Xử lý data-src giống src
+                if (img.hasAttribute('data-src')) {
+                    img.setAttribute('data-src', fallbackImageUrl);
+                }
                 return;
             }
-            const metaToken = document.querySelector('meta[name="csrf-token"]')
+            
+            const metaToken = document.querySelector('meta[name="csrf-token"]');
             if (!metaToken) {
                 img.src = fallbackImageUrl;
+                
+                // Xử lý data-src giống src
+                if (img.hasAttribute('data-src')) {
+                    img.setAttribute('data-src', fallbackImageUrl);
+                }
                 return;
             }
+            
             fetch("/ajax/get-fallback-image-url", {
                 method: "POST",
                 headers: {
@@ -40,8 +52,18 @@ function onErrorImage() {
                 .then((data) => {
                     if (data.fallbackImageUrl) {
                         img.src = data.fallbackImageUrl;
+                        
+                        // Xử lý data-src giống src
+                        if (img.hasAttribute('data-src')) {
+                            img.setAttribute('data-src', data.fallbackImageUrl);
+                        }
                     } else {
                         img.src = fallbackImageUrl;
+                        
+                        // Xử lý data-src giống src
+                        if (img.hasAttribute('data-src')) {
+                            img.setAttribute('data-src', fallbackImageUrl);
+                        }
                     }
                 })
                 .catch((error) => {
@@ -50,6 +72,11 @@ function onErrorImage() {
                         error
                     );
                     img.src = fallbackImageUrl;
+                    
+                    // Xử lý data-src giống src
+                    if (img.hasAttribute('data-src')) {
+                        img.setAttribute('data-src', fallbackImageUrl);
+                    }
                 });
         };
     });
