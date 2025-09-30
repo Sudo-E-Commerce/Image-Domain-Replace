@@ -74,7 +74,14 @@ class ImageDomainReplaceMiddleware
             // Only add fallback script if NOT admin or scms routes
             if (!$request->is('admin/*') && !$request->is('admin') && !$request->is('scms/*')) {
                 $script = $this->getFallbackScript();
-                $content = str_replace('</body>', $script . '</body>', $content);
+                
+                // Tìm vị trí CUỐI CÙNG của </body>
+                $lastBodyPos = strripos($content, '</body>');
+                
+                if ($lastBodyPos !== false) {
+                    // Chèn vào vị trí cuối cùng
+                    $content = substr_replace($content, $script, $lastBodyPos, 0);
+                }
             }
 
             $response->setContent($content);
