@@ -126,13 +126,9 @@ class ImageDomainReplaceMiddleware
             foreach ($this->oldDomains as $oldDomain) {
                 if (strpos($url, $oldDomain) !== false) {
                     if (strpos($url, $oldDomain) !== false) {
-                        $url = preg_replace('/' . preg_quote($oldDomain, '/') . '/i', $this->newDomain, $url);
+                        $url = str_replace($oldDomain, $this->newDomain, $url);
                     }
                 }
-            }
-            // remove .webp from  url if any
-            if (preg_match('/\.webp$/i', $url)) {
-                $url = preg_replace('/\.webp$/i', '', $url);
             }
             return $url;
         }, $content);
