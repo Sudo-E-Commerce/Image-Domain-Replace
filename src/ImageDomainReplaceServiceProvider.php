@@ -35,5 +35,10 @@ class ImageDomainReplaceServiceProvider extends ServiceProvider
         $this->mergeConfigFrom(
             __DIR__.'/../config/image-domain-replace.php', 'image-domain-replace'
         );
+
+        // Khai báo helpers/function.php vào hệ thống, chỉ function.php
+        if (file_exists($file = __DIR__.'/helpers/function.php')) {
+            require_once $file;
+        }
     }
 }

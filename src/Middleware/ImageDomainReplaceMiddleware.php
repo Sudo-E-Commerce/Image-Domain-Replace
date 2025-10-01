@@ -58,7 +58,7 @@ class ImageDomainReplaceMiddleware
                     if (is_string($item)) {
                         $item = $this->replaceImageDomains($item);
                         // Check and create in bucket if needed
-                        $item = $this->checkOrCreateInBucket($item);
+                        $item = checkOrCreateInBucketIDR($item, $this->newDomain);
                     }
                 });
                 $response->setContent(json_encode($arrayContent));
@@ -107,6 +107,11 @@ class ImageDomainReplaceMiddleware
         
         // Add regex patterns for subdomains (like resize., cdn., storage., etc.)
         foreach ($this->regexPatterns as $prefix) {
+            //
+            //
+            if (strtolower($prefix) === 'sudospaces.com') {
+                continue;
+            }
             $allPatterns[] = '(?:' . preg_quote($prefix, '/') . '\\.|)sudospaces\\.com';
             $allPatterns[] = preg_quote($prefix, '/') . '[^"\'\s]*';
         }
@@ -125,338 +130,20 @@ class ImageDomainReplaceMiddleware
                     }
                 }
             }
+            // remove .webp from  url if any
+            if (preg_match('/\.webp$/i', $url)) {
+                $url = preg_replace('/\.webp$/i', '', $url);
+            }
             return $url;
         }, $content);
     }
 
-    public function checkOrCreateInBucket($url)
-    {
-        try {
-            $awsDomain = config('filesystems.disks.s3.domain', '');
-            $upload = $this->getStorageDisk();
-            $originalPath = $this->getOriginalImagePath($url);
-            
-            // check path có .webp thì bỏ để lấy orginPath
-            $originalPath = preg_replace('/\.webp$/i', '', $originalPath);
-            $isHasWebp = preg_match('/\.webp$/i', $url);
-
-            //check có định dạng size indicator (w200, w300, etc.) to get original path hay không $isHasResize
-            $isHasResize = preg_match('/\\/w(\\d+)\\//i', $url);
-            
-            // Remove .webp extension from original path for processing
-            $originalPath = preg_replace('/\.webp$/i', '', $originalPath);
-            
-            // Setup domain configuration
-            if (empty($this->newDomain) || $this->newDomain === 'your.newdomain.com') {
-                $this->newDomain = config('image-domain-replace.new_domain', 'storage.sudospaces.com/fastmobile-vn');
-            }
-            
-            // Step 1: Verify original image exists
-            if (!$upload->exists($originalPath)) {
-                return $url;
-            }
-            
-            // Step 2: Create original WebP version if it doesn't exist
-            $originalWebpPath = $originalPath . '.webp';
-            if (!$upload->exists($originalWebpPath) && !$isHasResize && $isHasWebp) {
-                $this->createWebpImage($originalPath, $originalWebpPath, $upload);
-                return $awsDomain . ltrim($originalWebpPath, '/');
-            }
-            
-            // Step 3: Check if resize is needed
-            $size = $this->extractImageSize($url);
-            
-            // Step 4: Process resize image
-            $resizeImagePath = $this->getResizeImagePath($url);
-            Log::info('Processing image', [
-                'resize_path' => $resizeImagePath,
-            ]);
-            // Create resized image if it doesn't exist
-            if (!$upload->exists($resizeImagePath)) {
-                Log::info('Creating resized image from: ' . $originalPath);
-                $this->createResizedImage($originalPath, $resizeImagePath, $size, $upload);
-            }
-            
-            // Step 5: Create resized WebP version if needed
-            if ($isHasWebp) {
-                $resizeWebpPath = $resizeImagePath . '.webp';
-                if (!$upload->exists($resizeWebpPath)) {
-                    $this->createWebpImage($resizeImagePath, $resizeWebpPath, $upload);
-                }
-                
-                if ($upload->exists($resizeWebpPath)) {
-                    $finalUrl =  $awsDomain . ltrim($resizeWebpPath, '/');
-                    return $finalUrl;
-                } else {
-                    Log::warning('Failed to create resized WebP, falling back to resized image');
-                }
-            }
-            
-            // Step 6: Return resized image URL
-            $finalUrl = $awsDomain . ltrim($resizeImagePath, '/');
-            return $finalUrl;
-            
-        } catch (\Exception $e) {
-            Log::error('Error in checkOrCreateInBucket', [
-                'url' => $url,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-            return $url;
-        }
-    }
-
-    protected function getStorageDisk()
-    {
-        $disk = config('app.storage_type');
-        if ($disk == 'digitalocean') {
-            $disk = 'do';
-        }
-        return Storage::disk($disk);
-    }
-
-    protected function getOriginalImagePath($url)
-    {
-        // Remove bucket name from path if present
-        $awsDomain = config('filesystems.disks.s3.domain', '');
-
-        $path = str_replace($awsDomain, '', $url);
-
-        // Remove leading slash if present
-        $path = ltrim($path, '/');
-        
-        // Remove size indicator (w200, w300, etc.) to get original path
-        $originalPath = preg_replace('/\/w\d+\//', '/', $path);
-
-        return $originalPath;
-    }
-
-    protected function getResizeImagePath($url)
-    {
-        // Remove bucket name from path if present
-        $awsDomain = config('filesystems.disks.s3.domain', '');
-        $path = str_replace($awsDomain, '', $url);
-        
-        // Remove leading slash if present
-        $path = ltrim($path, '/');
-        // Remove .webp extension but keep the w{number} structure
-        $path = preg_replace('/\.webp$/i', '', $path);
-        
-        // Log::info('Resize path conversion', [
-        //     'input_url' => $url,
-        //     'parsed_path' => parse_url($url, PHP_URL_PATH),
-        //     'final_resize_path' => $path
-        // ]);
-        
-        return $path;
-    }
-
-    protected function getOriginalImageUrl($url)
-    {
-        return preg_replace('/\\/w\\d+/', '', $url);
-    }
-
-    protected function extractImageSize($url)
-    {
-        preg_match('/w(\\d+)/i', $url, $matches);
-        return isset($matches[1]) ? (int)$matches[1] : null;
-    }
-
-    protected function createResizedImage($originalUrl, $resizeLink, $size, $upload)
-    {
-        try {
-            // Log the attempt
-            Log::info('Creating resized image', [
-                'original_url' => $originalUrl,
-                'resize_link' => $resizeLink,
-                'size' => $size
-            ]);
-
-            // Check if resized image already exists
-            if ($upload->exists($resizeLink)) {
-                Log::info('Resized image already exists: ' . $resizeLink);
-                return;
-            }
-
-            // Get image content with error handling
-            $context = stream_context_create([
-                'http' => [
-                    'timeout' => 30,
-                    'user_agent' => 'Mozilla/5.0 (compatible; ImageProcessor/1.0)',
-                    'follow_location' => true
-                ]
-            ]);
-            $awsDomain = config('filesystems.disks.s3.domain', '');
-            $originalUrl = str_replace($awsDomain, '', $originalUrl);
-            $originalUrl = ltrim($originalUrl, '/');
-            $originalUrl = $awsDomain . '/' . $originalUrl;
-
-            $imageContent = file_get_contents($originalUrl, false, $context);
-            
-            if ($imageContent === false) {
-                Log::error('Failed to fetch image content from: ' . $originalUrl);
-                return;
-            }
-
-            // Create and resize image
-            $image = Image::make($imageContent);
-            
-            // Get original dimensions for logging
-            $originalWidth = $image->width();
-            $originalHeight = $image->height();
-            
-            Log::info('Original image dimensions', [
-                'width' => $originalWidth,
-                'height' => $originalHeight,
-                'target_size' => $size
-            ]);
-
-            // Only resize if image is larger than target size
-            if ($originalWidth > $size) {
-                $image->widen($size, function ($constraint) {
-                    $constraint->upsize();
-                });
-            }
-
-            // Determine file extension and quality
-            $fileExtension = pathinfo(parse_url($resizeLink, PHP_URL_PATH), PATHINFO_EXTENSION);
-            if (!$fileExtension) {
-                $fileExtension = 'jpg';
-            }
-
-            $quality = 90;
-            if (strtolower($fileExtension) === 'png') {
-                $quality = 9; // PNG compression level (0-9)
-            }
-
-            // Create image stream
-            $imageResize = $image->stream($fileExtension, $quality);
-
-            // Upload to storage
-            $result = $upload->put($resizeLink, $imageResize->__toString(), 'public');
-
-            if ($result) {
-                Log::info('Successfully created resized image: ' . $resizeLink);
-            } else {
-                Log::error('Failed to upload resized image: ' . $resizeLink);
-            }
-
-        } catch (\Exception $e) {
-            Log::error('Error in createResizedImage', [
-                'original_url' => $originalUrl,
-                'resize_link' => $resizeLink,
-                'size' => $size,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-            throw $e;
-        }
-    }
-
-    protected function getFallbackScript()
+    public function getFallbackScript()
     {
         $scriptPath = '/vendor/image-domain-replace/js/script.js';
         
         return '
         <!-- Image Domain Replace Package -->
         <script src="' . $scriptPath . '"></script>';
-    }
-
-    public function checkOrCreateWebp($url)
-    {
-        try {
-            $upload = $this->getStorageDisk();
-            $originalPath = $this->getOriginalImagePath($url);
-            // check path có .webp thì bỏ để lấy orginPath
-            $originalPath = preg_replace('/\.webp$/i', '', $originalPath);
-
-            // Check if original image exists
-            if (!$upload->exists($originalPath)) {
-                Log::warning('Original image does not exist in bucket for WebP: ' . $originalPath);
-                return $url;
-            }
-            $webpLink = preg_replace('/\.(jpg|jpeg|png|gif)$/i', '.webp', $this->getResizeImagePath($url));
-            Log::info('WebP path: ' . $webpLink);
-
-            // Check if WebP image already exists
-            if ($upload->exists($webpLink)) {
-                Log::info('WebP image already exists: ' . $webpLink);
-                // Return the new domain URL even if image exists
-                $newUrl = $this->newDomain . '/' . $webpLink;
-                Log::info('Returning existing WebP image URL: ' . $newUrl);
-                return $newUrl;
-            }
-
-            $originalUrl = $this->getOriginalImageUrl($url);
-            Log::info('Original URL for WebP processing: ' . $originalUrl);
-
-            // Create WebP image
-            $this->createWebpImage($originalUrl, $webpLink, $upload);
-
-            // Verify the WebP image was created successfully
-            if ($upload->exists($webpLink)) {
-                $newUrl = $this->newDomain . '/' . $webpLink;
-                Log::info('Successfully created and verified WebP image, returning: ' . $newUrl);
-                return $newUrl;
-            } else {
-                Log::error('WebP image was not created successfully: ' . $webpLink);
-                return $url;
-            }
-
-        } catch (\Exception $e) {
-            Log::error('Error in checkOrCreateWebP for image: ' . $url);
-            Log::error('Error message: ' . $e->getMessage());
-            Log::error('Stack trace: ' . $e->getTraceAsString());
-            return $url;
-        }
-    }
-
-    public function createWebpImage($originalUrl, $webpLink, $upload)
-    {
-        try {
-            // Log the attempt
-            Log::info('Creating WebP image', [
-                'original_url' => $originalUrl,
-                'webp_link' => $webpLink
-            ]);
-
-            $awsDomain = config('filesystems.disks.s3.domain', '');
-            $originalUrl = str_replace($awsDomain, '', $originalUrl);
-            $originalUrl = ltrim($originalUrl, '/');
-            $originalUrl = $awsDomain . '/' . $originalUrl;
-            
-            $imageContent = file_get_contents($originalUrl, false);
-            
-            if ($imageContent === false) {
-                Log::error('Failed to fetch image content from: ' . $originalUrl);
-                return;
-            }
-
-            // Create and convert image to WebP
-            $image = Image::make($imageContent);
-
-            // Determine quality for WebP
-            $quality = 100;
-
-            // Create WebP image stream
-            $imageWebp = $image->encode('webp', $quality);
-            // Upload to storage
-            $result = $upload->put($webpLink, $imageWebp->__toString(), 'public');
-
-            if ($result) {
-                Log::info('Successfully created WebP image: ' . $webpLink);
-            } else {
-                Log::error('Failed to upload WebP image: ' . $webpLink);
-            }
-
-        } catch (\Exception $e) {
-            Log::error('Error in createWebpImage', [
-                'original_url' => $originalUrl,
-                'webp_link' => $webpLink,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-            throw $e;
-        }
     }
 }
