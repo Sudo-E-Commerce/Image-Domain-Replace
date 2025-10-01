@@ -54,11 +54,9 @@ class ImageDomainReplaceMiddleware
             $content = $response->getContent();
             $arrayContent = json_decode($content, true);
             if (json_last_error() === JSON_ERROR_NONE && is_array($arrayContent)) {
-                array_walk_recursive($arrayContent, function (&$item, $key) {
+                array_walk_recursive($arrayContent, function (&$item, $key) use ($request) {
                     if (is_string($item)) {
-                        $item = $this->replaceImageDomains($item);
-                        // Check and create in bucket if needed
-                        $item = checkOrCreateInBucketIDR($item, $this->newDomain);
+                        $item = $this->replaceImageDomains($item, $request);
                     }
                 });
                 $response->setContent(json_encode($arrayContent));
@@ -69,7 +67,7 @@ class ImageDomainReplaceMiddleware
             $content = $response->getContent();
             
             // Always apply domain replacement
-            $content = $this->replaceImageDomains($content);
+            $content = $this->replaceImageDomains($content, $request);
 
             // Only add fallback script if NOT admin or scms routes
             if (!$request->is('admin/*') && !$request->is('admin') && !$request->is('scms/*')) {
@@ -95,7 +93,7 @@ class ImageDomainReplaceMiddleware
         return $contentType && strpos($contentType, 'text/html') !== false;
     }
 
-    protected function replaceImageDomains($content)
+    protected function replaceImageDomains($content, $request)
     {
         // Build dynamic pattern from configured domains and patterns
         $allPatterns = [];
@@ -107,8 +105,6 @@ class ImageDomainReplaceMiddleware
         
         // Add regex patterns for subdomains (like resize., cdn., storage., etc.)
         foreach ($this->regexPatterns as $prefix) {
-            //
-            //
             if (strtolower($prefix) === 'sudospaces.com') {
                 continue;
             }
@@ -121,12 +117,15 @@ class ImageDomainReplaceMiddleware
         }
         $pattern = '/https?:\\/\\/(' . implode('|', $allPatterns) . ')[^"\'\s]*/i';
 
-        return preg_replace_callback($pattern, function ($matches) {
+        return preg_replace_callback($pattern, function ($matches) use ($request) {
             $url = $matches[0];
             foreach ($this->oldDomains as $oldDomain) {
                 if (strpos($url, $oldDomain) !== false) {
                     if (strpos($url, $oldDomain) !== false) {
                         $url = str_replace($oldDomain, $this->newDomain, $url);
+                        if($request->ajax()){
+                            checkOrCreateInBucketIDR($url, $this->newDomain);
+                        }
                     }
                 }
             }
@@ -136,7 +135,7 @@ class ImageDomainReplaceMiddleware
 
     public function getFallbackScript()
     {
-        $scriptPath = '/vendor/image-domain-replace/js/script.js?v=' . time();
+        $scriptPath = '/public/vendor/image-domain-replace/js/script.js?v=' . time();
         
         return '
         <!-- Image Domain Replace Package -->
