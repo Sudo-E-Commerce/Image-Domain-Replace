@@ -79,10 +79,6 @@ function onErrorImage() {
                     }
                 })
                 .catch((error) => {
-                    console.error(
-                        "An error occurred during the fetch request",
-                        error
-                    );
                     img.src = fallbackImageUrl;
                     
                     // Xử lý data-src và data-original giống src

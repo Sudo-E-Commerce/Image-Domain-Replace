@@ -27,14 +27,6 @@ class ImageController extends Controller
         try {
             $imageUrl = $request->input('imageUrl'); // Note: script.js uses 'imageUrl' not 'image_url'
             
-            Log::info('Fallback image request received', [
-                'imageUrl' => $imageUrl,
-                'request_method' => $request->method(),
-                'content_type' => $request->header('Content-Type'),
-                'ajax' => $request->ajax(),
-                'expects_json' => $request->expectsJson()
-            ]);
-            
             if (!$imageUrl) {
                 return response()->json([
                     'success' => false,
@@ -42,8 +34,6 @@ class ImageController extends Controller
                     'message' => 'Image URL is required'
                 ], 400, $headers);
             }
-
-            Log::info('Processing image URL via fallback endpoint: ' . $imageUrl);
 
             // Use the middleware's image checking logic
             $middleware = new ImageDomainReplaceMiddleware();
@@ -71,12 +61,12 @@ class ImageController extends Controller
                 $fallbackImageUrl = config('image-domain-replace.fallback_image', '/vendor/core/core/base/img/placeholder.png');
             }
 
-            Log::info('Fallback endpoint result', [
-                'original_url' => $imageUrl,
-                'fallback_url' => $fallbackImageUrl,
-                'file_exists' => $fileExists,
-                'success' => $fileExists
-            ]);
+            // Log::info('Fallback endpoint result', [
+            //     'original_url' => $imageUrl,
+            //     'fallback_url' => $fallbackImageUrl,
+            //     'file_exists' => $fileExists,
+            //     'success' => $fileExists
+            // ]);
 
             return response()->json([
                 'success' => true,
