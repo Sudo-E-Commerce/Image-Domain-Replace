@@ -6,6 +6,7 @@ function handleImageError(img) {
     }
     img.errorCount++;
 
+    // Nếu lỗi quá 1 lần thì gán ảnh mặc định
     if (img.errorCount > 1) {
         setImageSrc(img, fallbackImageUrl);
         return;
@@ -41,7 +42,7 @@ function handleImageError(img) {
             setImageSrc(img, fallbackImageUrl);
         }
     })
-    .catch((error) => {
+    .catch(() => {
         setImageSrc(img, fallbackImageUrl);
     });
 }
@@ -64,14 +65,10 @@ function attachErrorHandler(img) {
 
     img.dataset.errorHandlerAttached = 'true';
 
+    // Chỉ gán fallback khi thật sự lỗi
     img.onerror = function() {
         handleImageError(this);
     };
-
-    // Kiểm tra nếu ảnh đã lỗi trước khi attach handler
-    if (img.complete && img.naturalHeight === 0 && img.naturalWidth === 0) {
-        handleImageError(img);
-    }
 }
 
 function onErrorImage() {
@@ -80,15 +77,13 @@ function onErrorImage() {
         attachErrorHandler(img);
     });
 
-    // Theo dõi ảnh mới được thêm vào DOM (cho Swiper lazy load)
+    // Theo dõi ảnh mới được thêm vào DOM (cho lazy load, Swiper, v.v.)
     const observer = new MutationObserver(function(mutations) {
         mutations.forEach(function(mutation) {
             mutation.addedNodes.forEach(function(node) {
-                // Nếu node là img
                 if (node.nodeName === 'IMG') {
                     attachErrorHandler(node);
                 }
-                // Nếu node chứa img
                 if (node.querySelectorAll) {
                     node.querySelectorAll('img').forEach(function(img) {
                         attachErrorHandler(img);
@@ -98,13 +93,11 @@ function onErrorImage() {
         });
     });
 
-    // Bắt đầu observe toàn bộ body
     observer.observe(document.body, {
         childList: true,
         subtree: true
     });
 
-    // Lưu observer để có thể disconnect sau này nếu cần
     window.imageErrorObserver = observer;
 }
 
