@@ -1,5 +1,5 @@
 function handleImageError(img) {
-    const fallbackImageUrl = "/vendor/core/core/base/img/placeholder.png";
+    const fallbackImageUrl = "/vendor/image-domain-replace/img/default_image.png";
 
     if (!img.errorCount) {
         img.errorCount = 0;
