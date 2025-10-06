@@ -4,7 +4,7 @@ function onErrorImage() {
         img.dataset.errorBound = true;
 
         img.onerror = function () {
-            const fallbackImageUrl = "/vendor/core/core/base/img/placeholder.png";
+            const fallbackImageUrl = "/assets/img/default_image.png";
 
             if (!img.hasOwnProperty("errorCount")) img.errorCount = 0;
             img.errorCount++;
