@@ -1,75 +1,117 @@
 const FALLBACK_IMAGE = "/public/vendor/image-domain-replace/img/default_image.png";
+const fallbackCache = new Map(); // Cache để tránh duplicate requests
+const processingImages = new WeakSet(); // Theo dõi ảnh đang xử lý
 
 // Xử lý lỗi ảnh
 function handleImageError(img) {
-    const metaToken = document.querySelector('meta[name="csrf-token"]');
-    img.onerror = null; // tránh loop vô hạn
+    if (processingImages.has(img)) return; // Tránh xử lý trùng
+    processingImages.add(img);
+    
+    img.onerror = null;
+    const originalSrc = img.dataset.originalSrc || img.src;
     img.src = FALLBACK_IMAGE;
 
+    const metaToken = document.querySelector('meta[name="csrf-token"]');
     if (!metaToken) return;
 
-    // Fetch fallback động 1 lần duy nhất
+    // Kiểm tra cache trước
+    if (fallbackCache.has(originalSrc)) {
+        img.src = fallbackCache.get(originalSrc);
+        return;
+    }
+
     fetch("/ajax/get-fallback-image-url", {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
             "X-CSRF-TOKEN": metaToken.getAttribute("content"),
         },
-        body: JSON.stringify({ imageUrl: img.dataset.originalSrc || img.src }),
+        body: JSON.stringify({ imageUrl: originalSrc }),
     })
     .then(res => res.ok ? res.json() : null)
     .then(data => {
-        if (data?.fallbackImageUrl) img.src = data.fallbackImageUrl;
+        if (data?.fallbackImageUrl) {
+            fallbackCache.set(originalSrc, data.fallbackImageUrl);
+            img.src = data.fallbackImageUrl;
+        }
     })
-    .catch(() => {});
+    .catch(() => {})
+    .finally(() => processingImages.delete(img));
 }
 
-// Gán handler lỗi cho ảnh mới
+// Gán handler lỗi cho ảnh
 function setupImageErrorHandlers(container = document) {
-    container.querySelectorAll("img:not([data-error-bound])").forEach(img => {
+    const images = container.tagName === "IMG" 
+        ? [container] 
+        : container.querySelectorAll("img:not([data-error-bound])");
+    
+    images.forEach(img => {
         img.dataset.errorBound = "true";
         img.dataset.originalSrc = img.src;
-        img.addEventListener("error", () => handleImageError(img), { once: true });
+        
+        // Kiểm tra ảnh đã load lỗi
+        if (img.complete && img.naturalWidth === 0) {
+            handleImageError(img);
+        } else {
+            img.addEventListener("error", () => handleImageError(img), { once: true });
+        }
     });
 }
 
-// Quan sát ảnh lazy bằng 1 IntersectionObserver duy nhất
+// Lazy loading observer
+let lazyObserver = null;
 function observeLazyImages() {
     if (!("IntersectionObserver" in window)) {
         setupImageErrorHandlers();
         return;
     }
 
-    const observer = new IntersectionObserver((entries, obs) => {
+    lazyObserver = new IntersectionObserver((entries) => {
         entries.forEach(entry => {
             if (entry.isIntersecting) {
                 const img = entry.target;
                 if (img.complete && img.naturalWidth === 0) handleImageError(img);
-                obs.unobserve(img);
+                lazyObserver.unobserve(img);
             }
         });
     }, { rootMargin: "100px" });
 
-    document.querySelectorAll("img[loading='lazy']").forEach(img => observer.observe(img));
+    document.querySelectorAll("img[loading='lazy']").forEach(img => {
+        if (!img.dataset.errorBound) lazyObserver.observe(img);
+    });
 }
 
-// Quan sát DOM mới thêm ảnh, chỉ observe container chính nếu có
+// Mutation observer với debounce
+let mutationObserver = null;
+let mutationTimeout = null;
 function observeNewImages(container = document.body) {
-    const observer = new MutationObserver(mutations => {
-        mutations.forEach(m => {
-            m.addedNodes.forEach(node => {
-                if (node.tagName === "IMG") setupImageErrorHandlers(node.parentNode);
-                else if (node.querySelectorAll) setupImageErrorHandlers(node);
-            });
-        });
+    mutationObserver = new MutationObserver(() => {
+        clearTimeout(mutationTimeout);
+        mutationTimeout = setTimeout(() => {
+            setupImageErrorHandlers();
+            observeLazyImages();
+        }, 100); // Debounce 100ms
     });
 
-    observer.observe(container, { childList: true, subtree: true });
+    mutationObserver.observe(container, { childList: true, subtree: true });
+}
+
+// Cleanup khi cần
+function cleanup() {
+    if (lazyObserver) lazyObserver.disconnect();
+    if (mutationObserver) mutationObserver.disconnect();
+    clearTimeout(mutationTimeout);
 }
 
 // Khởi tạo
-document.addEventListener("DOMContentLoaded", () => {
+if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init);
+} else {
+    init();
+}
+
+function init() {
     setupImageErrorHandlers();
     observeLazyImages();
     observeNewImages();
-});
+}
