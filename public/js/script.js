@@ -1,118 +1,75 @@
-function onErrorImage() {
-    document.querySelectorAll("img").forEach(function (img) {
-        // Tránh gán lại handler nhiều lần
-        if (img.dataset.errorBound) return;
-        img.dataset.errorBound = true;
-        console.log("Kiểm tra ảnh:", img.src);
+const FALLBACK_IMAGE = "/public/vendor/image-domain-replace/img/default_image.png";
 
-        img.onerror = function () {
-            const fallbackImageUrl = "/public/vendor/image-domain-replace/img/default_image.png";
+// Xử lý lỗi ảnh
+function handleImageError(img) {
+    const metaToken = document.querySelector('meta[name="csrf-token"]');
+    img.onerror = null; // tránh loop vô hạn
+    img.src = FALLBACK_IMAGE;
 
-            if (!img.hasOwnProperty("errorCount")) img.errorCount = 0;
-            img.errorCount++;
+    if (!metaToken) return;
 
-            // Chỉ thử fetch 1 lần
-            if (img.errorCount > 1) {
-                img.src = fallbackImageUrl;
-                if (img.hasAttribute("data-src")) img.setAttribute("data-src", fallbackImageUrl);
-                if (img.hasAttribute("data-original")) img.setAttribute("data-original", fallbackImageUrl);
-                return;
-            }
+    // Fetch fallback động 1 lần duy nhất
+    fetch("/ajax/get-fallback-image-url", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "X-CSRF-TOKEN": metaToken.getAttribute("content"),
+        },
+        body: JSON.stringify({ imageUrl: img.dataset.originalSrc || img.src }),
+    })
+    .then(res => res.ok ? res.json() : null)
+    .then(data => {
+        if (data?.fallbackImageUrl) img.src = data.fallbackImageUrl;
+    })
+    .catch(() => {});
+}
 
-            const metaToken = document.querySelector('meta[name="csrf-token"]');
-            
-            // :white_check_mark: Kiểm tra token tồn tại
-            if (!metaToken) {
-                console.error("CSRF token not found!");
-                img.src = fallbackImageUrl;
-                return;
-            }
-
-            console.log("Thử lấy ảnh thay thế từ server...", img.src);
-
-            fetch("/ajax/get-fallback-image-url", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "X-CSRF-TOKEN": metaToken.getAttribute("content"),
-                },
-                body: JSON.stringify({ imageUrl: img.src }),
-            })
-                .then((response) => (response.ok ? response.json() : Promise.reject(response)))
-                .then((data) => {
-                    console.log("Fallback response:", data);
-                    const url = data?.fallbackImageUrl || fallbackImageUrl;
-                    img.src = url;
-                    if (img.hasAttribute("data-src")) img.setAttribute("data-src", url);
-                    if (img.hasAttribute("data-original")) img.setAttribute("data-original", url);
-                })
-                .catch((error) => {
-                    console.error("Fetch failed:", error);
-                    img.src = fallbackImageUrl;
-                });
-        };
-
-        // :warning: Nếu ảnh đã load xong nhưng bị lỗi
-        if (img.complete && img.naturalWidth === 0) {
-            img.onerror();
-        }
+// Gán handler lỗi cho ảnh mới
+function setupImageErrorHandlers(container = document) {
+    container.querySelectorAll("img:not([data-error-bound])").forEach(img => {
+        img.dataset.errorBound = "true";
+        img.dataset.originalSrc = img.src;
+        img.addEventListener("error", () => handleImageError(img), { once: true });
     });
 }
 
-// :mag: Theo dõi vùng slide (swiper, slick, v.v.)
-function observeSlideImages() {
-    const selectors = [".s-wrap", ".s-content", ".swiper", ".carousel", ".slick-slider"];
-
-    selectors.forEach(selector => {
-        document.querySelectorAll(selector).forEach(container => {
-            const observer = new MutationObserver(mutations => {
-                let hasNewImage = false;
-
-                for (const mutation of mutations) {
-                    for (const node of mutation.addedNodes) {
-                        if (node.tagName === "IMG" || node.querySelector?.("img")) {
-                            hasNewImage = true;
-                            break;
-                        }
-                    }
-                    if (hasNewImage) break;
-                }
-
-                if (hasNewImage) onErrorImage();
-            });
-
-            observer.observe(container, { childList: true, subtree: true });
-        });
-    });
-}
-
-// :eyes: Theo dõi lazyload ảnh khi vào viewport
+// Quan sát ảnh lazy bằng 1 IntersectionObserver duy nhất
 function observeLazyImages() {
     if (!("IntersectionObserver" in window)) {
-        onErrorImage();
+        setupImageErrorHandlers();
         return;
     }
 
-    const observer = new IntersectionObserver((entries) => {
+    const observer = new IntersectionObserver((entries, obs) => {
         entries.forEach(entry => {
             if (entry.isIntersecting) {
                 const img = entry.target;
-                // Khi ảnh hiển thị, gán onerror và kiểm tra lỗi
-                onErrorImage();
-                // Kiểm tra nếu src lỗi sẵn
-                if (img.complete && img.naturalWidth === 0) {
-                    img.onerror();
-                }
-                observer.unobserve(img);
+                if (img.complete && img.naturalWidth === 0) handleImageError(img);
+                obs.unobserve(img);
             }
         });
-    }, { rootMargin: "100px" }); // preload khi sắp xuất hiện
+    }, { rootMargin: "100px" });
 
     document.querySelectorAll("img[loading='lazy']").forEach(img => observer.observe(img));
 }
 
-document.addEventListener("DOMContentLoaded", function () {
-    onErrorImage();
-    observeSlideImages();
+// Quan sát DOM mới thêm ảnh, chỉ observe container chính nếu có
+function observeNewImages(container = document.body) {
+    const observer = new MutationObserver(mutations => {
+        mutations.forEach(m => {
+            m.addedNodes.forEach(node => {
+                if (node.tagName === "IMG") setupImageErrorHandlers(node.parentNode);
+                else if (node.querySelectorAll) setupImageErrorHandlers(node);
+            });
+        });
+    });
+
+    observer.observe(container, { childList: true, subtree: true });
+}
+
+// Khởi tạo
+document.addEventListener("DOMContentLoaded", () => {
+    setupImageErrorHandlers();
     observeLazyImages();
+    observeNewImages();
 });
