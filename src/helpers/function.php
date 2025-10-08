@@ -8,7 +8,7 @@ if (!function_exists('checkOrCreateInBucketIDR')) {
     function checkOrCreateInBucketIDR($url, $newDomain)
     {
         try {
-            $awsDomain = config('filesystems.disks.s3.domain', config('filesystems.disks.do.domain', ''));
+            $awsDomain = config('filesystems.disks.s3.domain') ?? config('filesystems.disks.do.domain', '');
             $upload = getStorageDiskIDR();
             $originalPath = getOriginalImagePathIDR($url);
             
@@ -97,8 +97,8 @@ if (!function_exists('getOriginalImagePathIDR')) {
     function getOriginalImagePathIDR($url)
     {
         // Remove bucket name from path if present
-        $awsDomain = config('filesystems.disks.s3.domain', config('filesystems.disks.do.domain', ''));
-
+        $awsDomain = config('filesystems.disks.s3.domain') ?? config('filesystems.disks.do.domain', '');
+       
         $path = str_replace($awsDomain, '', $url);
 
         // Remove leading slash if present
@@ -115,19 +115,13 @@ if (!function_exists('getResizeImagePathIDR')) {
     function getResizeImagePathIDR($url)
     {
         // Remove bucket name from path if present
-        $awsDomain = config('filesystems.disks.s3.domain', config('filesystems.disks.do.domain', ''));
+        $awsDomain = config('filesystems.disks.s3.domain') ?? config('filesystems.disks.do.domain', '');
         $path = str_replace($awsDomain, '', $url);
         
         // Remove leading slash if present
         $path = ltrim($path, '/');
         // Remove .webp extension but keep the w{number} structure
         $path = preg_replace('/\.webp$/i', '', $path);
-        
-        // Log::info('Resize path conversion', [
-        //     'input_url' => $url,
-        //     'parsed_path' => parse_url($url, PHP_URL_PATH),
-        //     'final_resize_path' => $path
-        // ]);
         
         return $path;
     }
@@ -174,7 +168,7 @@ if (!function_exists('createResizedImageIDR')) {
                     'follow_location' => true
                 ]
             ]);
-            $awsDomain = config('filesystems.disks.s3.domain', config('filesystems.disks.do.domain', ''));
+            $awsDomain = config('filesystems.disks.s3.domain') ?? config('filesystems.disks.do.domain', '');
             $originalUrl = str_replace($awsDomain, '', $originalUrl);
             $originalUrl = ltrim($originalUrl, '/');
             $originalUrl = $awsDomain . '/' . $originalUrl;
@@ -304,7 +298,7 @@ if (!function_exists('createWebpImageIDR')) {
                 'webp_link' => $webpLink
             ]);
 
-            $awsDomain = config('filesystems.disks.s3.domain', config('filesystems.disks.do.domain', ''));
+            $awsDomain = config('filesystems.disks.s3.domain') ?? config('filesystems.disks.do.domain', '');
             $originalUrl = str_replace($awsDomain, '', $originalUrl);
             $originalUrl = ltrim($originalUrl, '/');
             $originalUrl = $awsDomain . '/' . $originalUrl;

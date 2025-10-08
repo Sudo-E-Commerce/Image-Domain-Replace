@@ -53,9 +53,10 @@ class ImageController extends Controller
 
         try {
             $imageUrl = $request->input('imageUrl'); // Note: script.js uses 'imageUrl' not 'image_url'
-            
+            //log $imageUrl for debugging
+
             if (!$imageUrl) {
-                $awsDomain = config('filesystems.disks.s3.domain', config('filesystems.disks.do.domain', ''));
+                $awsDomain = config('filesystems.disks.s3.domain') ?? config('filesystems.disks.do.domain', '');
                 $imageUrl = getOriginalImageUrlIDR($request->input('imageUrl', ''));
                 return response()->json([
                     'success' => false,
@@ -65,9 +66,8 @@ class ImageController extends Controller
             }
 
             $processedUrl = checkOrCreateInBucketIDR($imageUrl, $this->oldDomains);
-
             $upload = getStorageDiskIDR();
-            $awsDomain = config('filesystems.disks.s3.domain', config('filesystems.disks.do.domain', ''));
+            $awsDomain = config('filesystems.disks.s3.domain') ?? config('filesystems.disks.do.domain', '');
             $imageUrl = str_replace($awsDomain, '', $processedUrl);
  
             $fileExists = $upload->exists($imageUrl);
@@ -82,6 +82,7 @@ class ImageController extends Controller
 
             return response()->json([
                 'success' => true,
+                'request' => $imageUrl,
                 'fallbackImageUrl' => $fallbackImageUrl,
                 'message' => $fileExists ? 'Image processed successfully' : 'Using default fallback image'
             ], 200, $headers);
@@ -89,7 +90,7 @@ class ImageController extends Controller
         } catch (\Exception $e) {
             Log::error('Fallback image URL error: ' . $e->getMessage());
             Log::error($e->getTraceAsString());
-            $awsDomain = config('filesystems.disks.s3.domain', config('filesystems.disks.do.domain', ''));
+            $awsDomain = config('filesystems.disks.s3.domain') ?? config('filesystems.disks.do.domain', '');
             $imageUrl = getOriginalImageUrlIDR($request->input('imageUrl', ''));
             return response()->json([
                 'success' => false,
