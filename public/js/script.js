@@ -1,19 +1,30 @@
-const FALLBACK_IMAGE = "/vendor/image-domain-replace/img/default_image.png";
-const fallbackCache = new Map(); // Cache để tránh duplicate requests
-const processingImages = new WeakSet(); // Theo dõi ảnh đang xử lý
+/**
+ * Universal Image Error Handler
+ * Tự động phát hiện và xử lý lỗi ảnh cho mọi pattern:
+ * - Ảnh thường (không lazy)
+ * - data-src (LazyLoad, Lazyload.js)
+ * - data-original (Owl Carousel, Lazy Load XT)
+ * - loading="lazy" (Native browser lazy loading)
+ */
 
-// Xử lý lỗi ảnh
+const FALLBACK_IMAGE = "/vendor/image-domain-replace/img/default_image.png";
+const fallbackCache = new Map();
+const processingImages = new WeakSet();
+
+// ========================================
+// CORE: Xử lý lỗi ảnh
+// ========================================
 function handleImageError(img) {
-    if (processingImages.has(img)) return; // Tránh xử lý trùng
+    if (processingImages.has(img)) return;
     processingImages.add(img);
     
     img.onerror = null;
     
-    // Ưu tiên lấy từ data-src, sau đó data-original-src, cuối cùng là src hiện tại
-    const originalSrc = img.dataset.src || img.dataset.originalSrc || img.src;
+    // ✅ Universal: Detect tất cả các pattern
+    const originalSrc = getOriginalImageUrl(img);
     
-    // Bỏ qua nếu đã là fallback image
-    if (originalSrc === FALLBACK_IMAGE) {
+    // Skip nếu không có URL hợp lệ
+    if (!originalSrc || originalSrc === FALLBACK_IMAGE) {
         processingImages.delete(img);
         return;
     }
@@ -26,13 +37,14 @@ function handleImageError(img) {
         return;
     }
 
-    // Kiểm tra cache trước
+    // Check cache
     if (fallbackCache.has(originalSrc)) {
         img.src = fallbackCache.get(originalSrc);
         processingImages.delete(img);
         return;
     }
 
+    // Call API
     fetch("/ajax/get-fallback-image-url", {
         method: "POST",
         headers: {
@@ -43,7 +55,6 @@ function handleImageError(img) {
     })
     .then(res => res.ok ? res.json() : null)
     .then(data => {
-        console.log('📦 API Data:', data); // ← DEBUG
         if (data?.fallbackImageUrl) {
             fallbackCache.set(originalSrc, data.fallbackImageUrl);
             img.src = data.fallbackImageUrl;
@@ -53,7 +64,42 @@ function handleImageError(img) {
     .finally(() => processingImages.delete(img));
 }
 
-// Gán handler lỗi cho ảnh
+// ========================================
+// HELPER: Lấy URL gốc từ mọi pattern
+// ========================================
+function getOriginalImageUrl(img) {
+    // Priority order: data-original > data-src > data-lazy-src > data-original-src > src
+    return img.dataset.original || 
+           img.dataset.src || 
+           img.dataset.lazySrc ||
+           img.dataset.originalSrc || 
+           img.src;
+}
+
+// ========================================
+// HELPER: Kiểm tra có phải lazy load không
+// ========================================
+function isLazyImage(img) {
+    return !!(
+        img.dataset.original || 
+        img.dataset.src || 
+        img.dataset.lazySrc ||
+        img.getAttribute('loading') === 'lazy'
+    );
+}
+
+// ========================================
+// HELPER: Lấy lazy URL (nếu có)
+// ========================================
+function getLazyUrl(img) {
+    return img.dataset.original || 
+           img.dataset.src || 
+           img.dataset.lazySrc;
+}
+
+// ========================================
+// SETUP: Gán error handlers
+// ========================================
 function setupImageErrorHandlers(container = document) {
     const images = container.tagName === "IMG" 
         ? [container] 
@@ -62,23 +108,31 @@ function setupImageErrorHandlers(container = document) {
     images.forEach(img => {
         img.dataset.errorBound = "true";
         
-        // Lưu originalSrc: ưu tiên data-src (lazy load) > src hiện tại
+        // Lưu URL gốc để dùng sau này
         if (!img.dataset.originalSrc) {
-            img.dataset.originalSrc = img.dataset.src || img.src;
+            img.dataset.originalSrc = getOriginalImageUrl(img);
         }
         
-        // Kiểm tra ảnh đã load lỗi (chỉ với ảnh không phải lazy loading)
-        if (!img.dataset.src && img.complete && img.naturalWidth === 0) {
-            handleImageError(img);
-        } else if (!img.dataset.src) {
-            // Chỉ bind error event cho ảnh thường (không có data-src)
-            img.addEventListener("error", () => handleImageError(img), { once: true });
+        const isLazy = isLazyImage(img);
+        
+        if (!isLazy) {
+            // Ảnh thường: Xử lý ngay nếu đã lỗi
+            if (img.complete && img.naturalWidth === 0) {
+                handleImageError(img);
+            } else {
+                // Bind error event
+                img.addEventListener("error", () => handleImageError(img), { once: true });
+            }
         }
+        // Ảnh lazy sẽ được xử lý bởi observer
     });
 }
 
-// Lazy loading observer - Hỗ trợ cả native và data-src pattern
+// ========================================
+// OBSERVER: Lazy Loading (Universal)
+// ========================================
 let lazyObserver = null;
+
 function observeLazyImages() {
     if (!("IntersectionObserver" in window)) {
         setupImageErrorHandlers();
@@ -90,30 +144,34 @@ function observeLazyImages() {
             if (entry.isIntersecting) {
                 const img = entry.target;
                 
-                // Xử lý data-src lazy loading (jQuery Lazy, Lazyload, etc.)
-                if (img.dataset.src && !img.dataset.lazyLoaded) {
+                // Get lazy URL từ bất kỳ pattern nào
+                const lazySrc = getLazyUrl(img);
+                
+                if (lazySrc && !img.dataset.lazyLoaded) {
                     img.dataset.lazyLoaded = "true";
-                    const lazySrc = img.dataset.src;
-                    
-                    // Lưu originalSrc trước khi load
                     img.dataset.originalSrc = lazySrc;
                     
-                    // Test load ảnh trong memory
+                    // Test load trong memory
                     const tempImg = new Image();
                     
                     tempImg.onload = () => {
-                        // Load thành công → Swap src
+                        // Success: Swap src
                         img.src = lazySrc;
+                        
+                        // Cleanup lazy attributes
+                        delete img.dataset.original;
+                        delete img.dataset.src;
+                        delete img.dataset.lazySrc;
                     };
                     
                     tempImg.onerror = () => {
-                        // Load thất bại → Gọi API fallback
+                        // Failed: Call API fallback
                         handleImageError(img);
                     };
                     
                     tempImg.src = lazySrc;
                 }
-                // Xử lý native lazy loading đã lỗi
+                // Native lazy loading đã lỗi
                 else if (img.complete && img.naturalWidth === 0) {
                     handleImageError(img);
                 }
@@ -123,55 +181,88 @@ function observeLazyImages() {
         });
     }, { rootMargin: "100px" });
 
-    // Tìm cả 2 loại: native loading="lazy" VÀ data-src pattern
+    // ✅ Query tất cả các pattern lazy loading
     const lazyImages = document.querySelectorAll(
-        'img[loading="lazy"]:not([data-lazy-loaded]), img[data-src]:not([data-lazy-loaded])'
+        'img[loading="lazy"]:not([data-lazy-loaded]), ' +
+        'img[data-original]:not([data-lazy-loaded]), ' +
+        'img[data-src]:not([data-lazy-loaded]), ' +
+        'img[data-lazy-src]:not([data-lazy-loaded])'
     );
     
     lazyImages.forEach(img => {
         if (!img.dataset.errorBound) {
-            setupImageErrorHandlers(img); // Bind error handler trước
+            setupImageErrorHandlers(img);
         }
         lazyObserver.observe(img);
     });
 }
 
-// Mutation observer với debounce
+// ========================================
+// OBSERVER: DOM Mutations
+// ========================================
 let mutationObserver = null;
 let mutationTimeout = null;
+
 function observeNewImages(container = document.body) {
     mutationObserver = new MutationObserver(() => {
         clearTimeout(mutationTimeout);
         mutationTimeout = setTimeout(() => {
             setupImageErrorHandlers();
             observeLazyImages();
-        }, 100); // Debounce 100ms
+        }, 100);
     });
 
-    mutationObserver.observe(container, { childList: true, subtree: true });
+    mutationObserver.observe(container, { 
+        childList: true, 
+        subtree: true 
+    });
 }
 
-// Cleanup khi cần
+// ========================================
+// UTILITY: Cleanup
+// ========================================
 function cleanup() {
     if (lazyObserver) lazyObserver.disconnect();
     if (mutationObserver) mutationObserver.disconnect();
     clearTimeout(mutationTimeout);
+    fallbackCache.clear();
 }
 
-// Khởi tạo
-if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", init);
-} else {
-    init();
+// ========================================
+// UTILITY: Manual trigger (for AJAX content)
+// ========================================
+function scanImages(container = document) {
+    setupImageErrorHandlers(container);
+    observeLazyImages();
 }
 
+// ========================================
+// INIT
+// ========================================
 function init() {
     setupImageErrorHandlers();
     observeLazyImages();
     observeNewImages();
 }
 
-// Export cho sử dụng bên ngoài nếu cần
+if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init);
+} else {
+    init();
+}
+
+// ========================================
+// EXPORTS (for manual control)
+// ========================================
+if (typeof window !== 'undefined') {
+    window.ImageErrorHandler = {
+        init,
+        cleanup,
+        scanImages,
+        handleImageError
+    };
+}
+
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { handleImageError, cleanup, init };
+    module.exports = { init, cleanup, scanImages, handleImageError };
 }
