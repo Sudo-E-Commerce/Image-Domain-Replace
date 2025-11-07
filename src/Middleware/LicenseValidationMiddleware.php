@@ -92,29 +92,35 @@ class LicenseValidationMiddleware
         try {
             // Get license data
             $licenseData = $this->licenseService->getLicenseData();
-            if (!$licenseData) {
+            
+            // Nếu chưa có license data trong DB, cho phép truy cập bình thường
+            // Đây là trạng thái ban đầu khi chưa được activate license
+            if (!$licenseData || empty($licenseData)) {
                 return [
-                    'valid' => false,
-                    'reason' => 'no_license',
+                    'valid' => true,
+                    'reason' => 'no_license_data',
                     'details' => [
-                        'message' => 'No license found',
+                        'message' => 'No license data found - initial state',
                         'current' => $this->getCurrentDomain($request)
                     ]
                 ];
             }
 
             // Check domain validation if strict mode enabled
-                $domainValid = $this->validateDomain($request, $licenseData);
-                if (!$domainValid['valid']) {
-                    return $domainValid;
-                }
-            // Check expiry
-            if (isset($licenseData['end_time']) && !empty($licenseData['end_time'])) {
-                $expiryCheck = $this->checkExpiry($licenseData['end_time']);
+            $domainValid = $this->validateDomain($request, $licenseData);
+            if (!$domainValid['valid']) {
+                return $domainValid;
+            }
+            
+            // Check expiry - chỉ sử dụng expires_at
+            $expiryTime = $licenseData['expires_at'] ?? null;
+            if (!empty($expiryTime)) {
+                $expiryCheck = $this->checkExpiry($expiryTime);
                 if (isset($expiryCheck['valid']) && $expiryCheck['valid'] == false) {
                     return $expiryCheck;
                 }
             }
+            
             return [
                 'valid' => true,
                 'reason' => 'valid',
@@ -127,9 +133,11 @@ class LicenseValidationMiddleware
         } catch (\Exception $e) {
             Log::error('License validation error: ' . $e->getMessage());
             
+            // Nếu có lỗi validation, cho phép truy cập để tránh crash website
+            Log::warning('License validation failed, allowing access to prevent website crash');
             return [
-                'valid' => false,
-                'reason' => 'validation_error',
+                'valid' => true,
+                'reason' => 'validation_error_allow',
                 'details' => [
                     'error' => $e->getMessage(),
                     'current' => $this->getCurrentDomain($request)
@@ -185,16 +193,17 @@ class LicenseValidationMiddleware
 
     /**
      * Check license expiry
+     * Chỉ sử dụng expires_at
      */
-    private function checkExpiry(string $end_time): array
+    private function checkExpiry(string $expiryTime): array
     {
         try {
-            $issueTimestamp = strtotime($end_time);
+            $issueTimestamp = strtotime($expiryTime);
             if ($issueTimestamp === false) {
                 return [
                     'valid' => false,
                     'reason' => 'invalid_issue_date',
-                    'details' => ['end_time' => $end_time]
+                    'details' => ['expires_at' => $expiryTime]
                 ];
             }
             $expiryTimestamp = $issueTimestamp;
@@ -203,7 +212,7 @@ class LicenseValidationMiddleware
                     'valid' => false,
                     'reason' => 'license_expired',
                     'details' => [
-                        'end_time' => $end_time,
+                        'expires_at' => $expiryTime,
                         'expiryDate' => date('Y-m-d H:i:s', $expiryTimestamp),
                         'currentDate' => date('Y-m-d H:i:s')
                     ]
@@ -213,7 +222,7 @@ class LicenseValidationMiddleware
             return [
                 'valid' => true,
                 'details' => [
-                    'end_time' => $end_time,
+                    'expires_at' => $expiryTime,
                     'expiryDate' => date('Y-m-d H:i:s', $expiryTimestamp),
                     'daysRemaining' => floor(($expiryTimestamp - time()) / (24 * 60 * 60))
                 ]

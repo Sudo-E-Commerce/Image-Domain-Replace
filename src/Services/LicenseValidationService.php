@@ -84,7 +84,7 @@ class LicenseValidationService
             // Kiểm tra thời hạn theo logic từ license.md
             if (!$this->validateExpiry($data)) {
                 Log::warning('License expired', [
-                    'end_time' => $data['end_time'] ?? 'not set'
+                    'expires_at' => $data['expires_at'] ?? 'not set'
                 ]);
                 return $this->getDefaultLicenseInfo();
             }
@@ -113,7 +113,7 @@ class LicenseValidationService
                 'status' => 'not_found',
                 'message' => 'No license data found',
                 'domain' => null,
-                'end_time' => null,
+                'expires_at' => null,
                 'current_domain' => $this->getCurrentDomain(),
                 'is_expired' => true
             ];
@@ -124,7 +124,7 @@ class LicenseValidationService
         return [
             'status' => (is_array($isValid) && !empty($isValid)) ? 'valid' : 'invalid',
             'domain' => $data['domain'] ?? null,
-            'end_time' => $data['end_time'] ?? null,
+            'expires_at' => $data['expires_at'] ?? null,
             'current_domain' => $this->getCurrentDomain(),
             'is_expired' => !$this->validateExpiry($data),
             'validation_result' => is_array($isValid) ? 'passed' : 'failed'
@@ -332,25 +332,36 @@ class LicenseValidationService
 
     /**
      * Validate thời hạn license theo logic từ license.md
+     * Chỉ sử dụng expires_at
      * 
      * @param array $data
      * @return bool
      */
     protected function validateExpiry($data)
     {
-        if (!isset($data['end_time']) || empty($data['end_time'])) {
+        // Chỉ sử dụng expires_at
+        $expiryTime = $data['expires_at'] ?? null;
+        
+        if (!$expiryTime || empty($expiryTime)) {
             return true; // Không có thời hạn = vĩnh viễn
         }
         
         try {
-            $endDate = date('Y-m-d', strtotime($data['end_time']));
+            $endDate = date('Y-m-d', strtotime($expiryTime));
             $currentDate = date('Y-m-d');
+            
+            Log::debug('License expiry check', [
+                'expires_at' => $expiryTime,
+                'end_date' => $endDate,
+                'current_date' => $currentDate,
+                'is_valid' => $endDate >= $currentDate
+            ]);
             
             return $endDate >= $currentDate;
             
         } catch (Exception $e) {
             Log::error('Failed to validate expiry date', [
-                'end_time' => $data['end_time'],
+                'expires_at' => $expiryTime,
                 'error' => $e->getMessage()
             ]);
             return false;
