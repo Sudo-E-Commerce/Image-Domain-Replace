@@ -253,7 +253,59 @@ class LicenseValidationMiddleware
      */
     function openNoticeEXp()
     {
-        echo eval(base64_decode("cmV0dXJuICc8IURPQ1RZUEUgaHRtbD4KICAgICAgICAgICAgICAgIDxodG1sPgogICAgICAgICAgICAgICAgPGhlYWQ+CiAgICAgICAgICAgICAgICAgICAgPHRpdGxlPlRydXkgY+G6rXAgYuG7iyB04burIGNo4buRaTwvdGl0bGU+CiAgICAgICAgICAgICAgICAgICAgPHN0eWxlPgogICAgICAgICAgICAgICAgICAgICAgICBib2R5IHsKICAgICAgICAgICAgICAgICAgICAgICAgICAgIGZvbnQtZmFtaWx5OiBBcmlhbCwgc2Fucy1zZXJpZjsKICAgICAgICAgICAgICAgICAgICAgICAgICAgIGJhY2tncm91bmQtY29sb3I6ICNmMGYwZjA7CiAgICAgICAgICAgICAgICAgICAgICAgICAgICB0ZXh0LWFsaWduOiBjZW50ZXI7CiAgICAgICAgICAgICAgICAgICAgICAgIH0KCiAgICAgICAgICAgICAgICAgICAgICAgIC5ub3RpZmljYXRpb24gewogICAgICAgICAgICAgICAgICAgICAgICAgICAgYmFja2dyb3VuZC1jb2xvcjogI2ZmZmZmZjsKICAgICAgICAgICAgICAgICAgICAgICAgICAgIHdpZHRoOiA0MDBweDsKICAgICAgICAgICAgICAgICAgICAgICAgICAgIG1hcmdpbjogMTAwcHggYXV0bzsKICAgICAgICAgICAgICAgICAgICAgICAgICAgIHBhZGRpbmc6IDIwcHg7CiAgICAgICAgICAgICAgICAgICAgICAgICAgICBib3JkZXItcmFkaXVzOiA1cHg7CiAgICAgICAgICAgICAgICAgICAgICAgICAgICBib3gtc2hhZG93OiAwIDAgMTBweCByZ2JhKDAsIDAsIDAsIDAuMik7CiAgICAgICAgICAgICAgICAgICAgICAgIH0KCiAgICAgICAgICAgICAgICAgICAgICAgIC50aXRsZSB7CiAgICAgICAgICAgICAgICAgICAgICAgICAgICBmb250LXNpemU6IDI0cHg7CiAgICAgICAgICAgICAgICAgICAgICAgICAgICBmb250LXdlaWdodDogYm9sZDsKICAgICAgICAgICAgICAgICAgICAgICAgICAgIGNvbG9yOiAjZjAzZTNlOwogICAgICAgICAgICAgICAgICAgICAgICB9CgogICAgICAgICAgICAgICAgICAgICAgICAuY29udGFjdC1pbmZvIHsKICAgICAgICAgICAgICAgICAgICAgICAgICAgIG1hcmdpbi10b3A6IDIwcHg7CiAgICAgICAgICAgICAgICAgICAgICAgICAgICBmb250LXNpemU6IDE2cHg7CiAgICAgICAgICAgICAgICAgICAgICAgIH0KCiAgICAgICAgICAgICAgICAgICAgICAgIC5jb250YWN0LWluZm8gcCB7CiAgICAgICAgICAgICAgICAgICAgICAgICAgICBtYXJnaW46IDVweCAwOwogICAgICAgICAgICAgICAgICAgICAgICB9CgogICAgICAgICAgICAgICAgICAgICAgICAuY29udGFjdC1pbmZvIGltZyB7CiAgICAgICAgICAgICAgICAgICAgICAgICAgICBtYXgtd2lkdGg6IDEwMHB4OwogICAgICAgICAgICAgICAgICAgICAgICAgICAgbWFyZ2luLXRvcDogMTBweDsKICAgICAgICAgICAgICAgICAgICAgICAgfQogICAgICAgICAgICAgICAgICAgICAgICBhIHsKICAgICAgICAgICAgICAgICAgICAgICAgICAgIGNvbG9yOiAjMDk5MjY4OwogICAgICAgICAgICAgICAgICAgICAgICB9CiAgICAgICAgICAgICAgICAgICAgPC9zdHlsZT4KICAgICAgICAgICAgICAgIDwvaGVhZD4KICAgICAgICAgICAgICAgIDxib2R5PgogICAgICAgICAgICAgICAgICAgIDxkaXYgY2xhc3M9bm90aWZpY2F0aW9uPgogICAgICAgICAgICAgICAgICAgICAgICA8ZGl2IGNsYXNzPXRpdGxlPlRydXkgY+G6rXAgYuG7iyB04burIGNo4buRaTwvZGl2PgogICAgICAgICAgICAgICAgICAgICAgICA8cD5DaMO6bmcgdMO0aSB4aW4gdGjDtG5nIGLDoW8gcuG6sW5nIGThu4tjaCB24bulIGPhu6dhIGLhuqFuIGLhu4sgdOG6oW0ga2hvw6EgZG8gbcOjIHRydXkgY+G6rXAgaOG6v3QgaOG6oW4gaG/hurdjIGtow7RuZyBo4bujcCBs4buHITwvcD4KICAgICAgICAgICAgICAgICAgICA8L2Rpdj4KICAgICAgICAgICAgICAgIDwvYm9keT4KICAgICAgICAgICAgICAgIDwvaHRtbD4KICAgICAgICAgICAgICAgICc7"));
+        return '<!doctype html>
+            <html lang="vi">
+            <head>
+            <meta charset="utf-8" />
+            <meta name="viewport" content="width=device-width, initial-scale=1" />
+            <title>Hosting đã hết hạn</title>
+            <script src="https://cdn.tailwindcss.com"></script>
+            </head>
+            <body class="min-h-screen bg-gray-50 flex items-center justify-center p-6 dark:bg-gray-900">
+            <main class="w-full max-w-2xl mx-auto">
+                <section class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-lg p-8 sm:p-12">
+                <div class="flex items-start gap-6">
+                    <!-- Icon -->
+                    <div class="flex-shrink-0">
+                    <div class="w-16 h-16 rounded-full bg-red-50 dark:bg-red-900/30 flex items-center justify-center ring-1 ring-red-100 dark:ring-red-800">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 text-red-600 dark:text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v4m0 4h.01" />
+                        </svg>
+                    </div>
+                    </div>
+
+                    <!-- Content -->
+                    <div class="flex-1">
+                    <h1 class="text-2xl sm:text-3xl font-semibold text-gray-900 dark:text-gray-100">Hosting của bạn đã hết hạn</h1>
+                    <p class="mt-3 text-gray-600 dark:text-gray-300 leading-relaxed">Trang web hiện không thể truy cập do hosting đã hết hạn. Để phục hồi dịch vụ, vui lòng liên hệ ngay nhà cung cấp hosting để gia hạn hoặc kiểm tra thông tin thanh toán.</p>
+
+                    <div class="mt-6 flex flex-col sm:flex-row sm:items-center gap-4 justify-evenly">
+                        <a href="https://sudo.vn" target="_blank" rel="noopener noreferrer" class="inline-flex items-center justify-center px-5 py-3 rounded-lg bg-red-600 hover:bg-red-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-red-500 text-white font-medium shadow-sm">
+                        Đi tới sudo.vn
+                        <svg xmlns="http://www.w3.org/2000/svg" class="ml-3 w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 3h7v7m0 0L10 21l-7-7 11-11z" />
+                        </svg>
+                        </a>
+
+                        <button type="button" onclick="location.reload()" class="inline-flex items-center justify-center px-4 py-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 text-sm font-medium hover:bg-gray-50">
+                        Thử tải lại
+                        </button>
+                    </div>
+
+                    <div class="mt-6 text-sm text-gray-500 dark:text-gray-400 text-center">Nếu bạn không phải quản trị viên của trang này, vui lòng thông báo cho người quản trị hoặc bộ phận IT.
+                    </div>
+                    </div>
+                </div>
+
+                <!-- Footer help -->
+                <footer class="mt-8 border-t border-gray-100 dark:border-gray-700 pt-4">
+                    <p class="text-xs text-gray-500 dark:text-gray-400 text-center">Cần hỗ trợ thêm? Gửi email tới <a href="mailto:support@sudo.vn" class="underline">support@sudo.vn</a> hoặc gọi hotline nhà cung cấp.</p>
+                </footer>
+                </section>
+            </main>
+            </body>
+        </html>';
     }
 
     /**
