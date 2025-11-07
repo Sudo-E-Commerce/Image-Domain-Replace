@@ -19,7 +19,11 @@ class ImageDomainReplaceServiceProvider extends ServiceProvider
         });
         
         // Merge license config
-        $this->mergeConfigFrom(__DIR__ . '/config/license.php', 'image-domain-replace-license');
+                // Merge config
+        $this->mergeConfigFrom(__DIR__.'/config/license.php', 'image-domain-replace.license');
+        
+        // Load views
+        $this->loadViewsFrom(__DIR__.'/views', 'license');
     }
 
     public function boot()
@@ -27,10 +31,19 @@ class ImageDomainReplaceServiceProvider extends ServiceProvider
         // Load routes
         $this->loadRoutesFrom(__DIR__ . '/routes/web.php');
         $this->loadRoutesFrom(__DIR__ . '/routes/license.php');
+        $this->loadRoutesFrom(__DIR__ . '/routes/test.php');
         
         // Đăng ký middleware khi boot
         $router = $this->app['router'];
         $router->pushMiddlewareToGroup('web', \Sudo\ImageDomainReplace\Middleware\ImageDomainReplaceMiddleware::class);
+        
+        // Đăng ký License Validation Middleware
+        $router->aliasMiddleware('license.validate', \Sudo\ImageDomainReplace\Middleware\LicenseValidationMiddleware::class);
+        
+        // Tự động áp dụng license middleware cho web group nếu enabled
+        if (config('image-domain-replace-license.middleware.enabled', false)) {
+            $router->pushMiddlewareToGroup('web', \Sudo\ImageDomainReplace\Middleware\LicenseValidationMiddleware::class);
+        }
 
         // Publish config
         $this->publishes([

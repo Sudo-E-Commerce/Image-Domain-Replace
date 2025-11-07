@@ -177,7 +177,7 @@ class LicenseValidationService
      * 
      * @return array
      */
-    protected function getLicenseData()
+    public function getLicenseData()
     {
         try {
             $setting = null;

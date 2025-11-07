@@ -48,12 +48,13 @@ return [
     ],
 
     // Middleware settings
-    'middleware' => [
-        'enabled' => env('LICENSE_MIDDLEWARE_ENABLED', false),
-        'exclude_routes' => [
-            'api/license/*',
-            'admin/license/*',
-        ],
-    ],
-
-];
+        'middleware' => [
+            'enabled' => env('LICENSE_MIDDLEWARE_ENABLED', true), // Bật mặc định
+            'exclude_routes' => [
+                'api/license/*',
+                'admin/license/*',
+                '_debugbar/*', // Exclude debug bar
+                'test-provider', // Exclude test route
+                'test-no-middleware', // Exclude test route
+            ],
+        ],];
