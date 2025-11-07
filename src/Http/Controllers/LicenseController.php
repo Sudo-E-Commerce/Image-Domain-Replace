@@ -21,22 +21,27 @@ class LicenseController extends Controller
 
     /**
      * API endpoint để sudo.vn update license
-     * POST /marketplace-api/update-license
+     * POST /api/license/update
      */
     public function updateLicense(Request $request): JsonResponse
     {
         try {
-            Log::info('[License API] Received update license request', [
-                'headers' => $request->headers->all(),
-                'data' => $request->all()
-            ]);
 
             // Validate marketplace token
             if (!$this->validateMarketplaceToken($request)) {
                 Log::warning('[License API] Invalid marketplace token');
                 return response()->json([
                     'success' => false,
-                    'message' => 'Unauthorized access'
+                    'message' => 'Unauthorized access - Invalid token'
+                ], 401);
+            }
+
+            // Validate marketplace URL
+            if (!$this->validateMarketplaceURL($request)) {
+                Log::warning('[License API] Invalid marketplace URL');
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthorized access - Invalid source'
                 ], 401);
             }
 
@@ -100,6 +105,29 @@ class LicenseController extends Controller
         $expectedToken = config('image-domain-replace.license.marketplace.token');
 
         return !empty($token) && !empty($expectedToken) && hash_equals($expectedToken, $token);
+    }
+
+    /**
+     * Validate marketplace URL from sudo.vn
+     */
+    protected function validateMarketplaceURL(Request $request): bool
+    {
+        $referer = $request->header('referer');
+        $origin = $request->header('origin');
+        $expectedUrl = config('image-domain-replace.license.marketplace.url', 'https://sudo.vn');
+        
+        // Check referer hoặc origin có khớp với MARKETPLACE_URL không
+        if (!empty($referer) && strpos($referer, $expectedUrl) === 0) {
+            return true;
+        }
+
+        if (!empty($origin) && $origin === $expectedUrl) {
+            return true;
+        }
+
+        // Fallback: cho phép nếu không có referer/origin (có thể là curl/API call)
+        // Nhưng vẫn cần token đúng
+        return empty($referer) && empty($origin);
     }
 
     /**
@@ -177,7 +205,7 @@ class LicenseController extends Controller
 
     /**
      * Get current license status
-     * GET /marketplace-api/license-status
+     * GET /api/license/status
      */
     public function getLicenseStatus(Request $request): JsonResponse
     {
@@ -186,7 +214,15 @@ class LicenseController extends Controller
             if (!$this->validateMarketplaceToken($request)) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Unauthorized access'
+                    'message' => 'Unauthorized access - Invalid token'
+                ], 401);
+            }
+
+            // Validate marketplace URL
+            if (!$this->validateMarketplaceURL($request)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthorized access - Invalid source'
                 ], 401);
             }
 
