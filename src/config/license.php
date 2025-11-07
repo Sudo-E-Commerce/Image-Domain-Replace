@@ -26,6 +26,12 @@ return [
     // Log level cho license operations
     'log_level' => env('LICENSE_LOG_LEVEL', 'info'),
 
+    // Marketplace settings
+    'marketplace' => [
+        'url' => env('MARKETPLACE_URL', 'https://sudo.vn'),
+        'token' => env('MARKETPLACE_TOKEN', 'uDLg2Ktg3PgI5fuDuLvzkPOXABOK9WVjYC3xv7d9lEd4O7Pe1pwfIevMGPHI'),
+    ],
+
     // Các API endpoints được cho phép update license
     'allowed_update_ips' => [
         // sudo.vn IPs

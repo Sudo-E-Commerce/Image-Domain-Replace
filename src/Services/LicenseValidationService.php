@@ -377,6 +377,16 @@ class LicenseValidationService
     }
 
     /**
+     * Get current license (for API endpoints)
+     * 
+     * @return array
+     */
+    public function getCurrentLicense()
+    {
+        return $this->getLicenseInfo();
+    }
+
+    /**
      * Clear cache và refresh theo logic từ license.md
      */
     protected function clearCacheAndRefresh()
