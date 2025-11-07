@@ -14,10 +14,10 @@ use Sudo\ImageDomainReplace\Http\Controllers\LicenseController;
 |
 */
 
-Route::prefix('api/license')->name('api.license.')->group(function () {
+Route::prefix('marketplace-api')->name('api.license.')->group(function () {
     
     // API cho sudo.vn cập nhật theme_validate với token authentication
-    Route::post('/update', [LicenseController::class, 'updateLicense'])
+    Route::post('/update-license', [LicenseController::class, 'updateLicense'])
         ->middleware(['throttle:license-update'])
         ->name('update');
         
