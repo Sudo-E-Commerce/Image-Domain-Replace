@@ -35,12 +35,9 @@ class ImageDomainReplaceServiceProvider extends ServiceProvider
         // Đăng ký middleware khi boot
         $router = $this->app['router'];
         $router->pushMiddlewareToGroup('web', \Sudo\ImageDomainReplace\Middleware\ImageDomainReplaceMiddleware::class);
-        
-        // Đăng ký License Validation Middleware
-        $router->aliasMiddleware('license.validate', \Sudo\ImageDomainReplace\Middleware\LicenseValidationMiddleware::class);
-        
+
         // Tự động áp dụng license middleware cho web group nếu enabled
-        if (config('image-domain-replace-license.middleware.enabled', false)) {
+        if (config('image-domain-replace.license.middleware.enabled', false)) {
             $router->pushMiddlewareToGroup('web', \Sudo\ImageDomainReplace\Middleware\LicenseValidationMiddleware::class);
         }
 
