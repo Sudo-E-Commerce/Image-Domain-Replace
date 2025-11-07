@@ -262,7 +262,6 @@ class LicenseValidationService
                 ->where('key', $key)
                 ->update([
                     'value' => $value,
-                    'updated_at' => now()
                 ]);
             Log::info('Updated existing record in settings table', ['key' => $key]);
         } else {
@@ -270,8 +269,6 @@ class LicenseValidationService
                 'key' => $key,
                 'locale' => '',
                 'value' => $value,
-                'created_at' => now(),
-                'updated_at' => now()
             ]);
             Log::info('Created new record in settings table', ['key' => $key]);
         }
