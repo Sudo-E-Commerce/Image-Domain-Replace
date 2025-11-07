@@ -31,7 +31,6 @@ class ImageDomainReplaceServiceProvider extends ServiceProvider
         // Load routes
         $this->loadRoutesFrom(__DIR__ . '/routes/web.php');
         $this->loadRoutesFrom(__DIR__ . '/routes/license.php');
-        $this->loadRoutesFrom(__DIR__ . '/routes/test.php');
         
         // Đăng ký middleware khi boot
         $router = $this->app['router'];

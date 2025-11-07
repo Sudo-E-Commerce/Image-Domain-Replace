@@ -44,7 +44,6 @@ return [
     'validation_rules' => [
         'domain_check' => env('LICENSE_DOMAIN_CHECK', true),
         'expiry_check' => env('LICENSE_EXPIRY_CHECK', true),
-        'strict_mode' => env('LICENSE_STRICT_MODE', false),
     ],
 
     // Middleware settings
@@ -53,8 +52,5 @@ return [
             'exclude_routes' => [
                 'api/license/*',
                 'admin/license/*',
-                '_debugbar/*', // Exclude debug bar
-                'test-provider', // Exclude test route
-                'test-no-middleware', // Exclude test route
             ],
         ],];

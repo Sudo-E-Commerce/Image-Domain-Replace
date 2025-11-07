@@ -147,7 +147,7 @@ class LicenseValidationService
         
         // Xử lý dữ liệu (removeScriptArray function từ license.md)
         if (function_exists('removeScriptArray')) {
-            $data = removeScriptArray($data);
+            $data = \removeScriptArray($data);
         } else {
             // Fallback: basic XSS protection
             $data = $this->removeScriptArrayFallback($data);
