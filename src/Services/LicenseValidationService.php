@@ -25,14 +25,24 @@ class LicenseValidationService
         try {
             Log::info('LicenseValidationService: Starting license update', [
                 'data_keys' => array_keys($data),
-                'setting_key' => $this->settingKey
+                'setting_key' => $this->settingKey,
+                'raw_data' => $data
             ]);
 
             // Xử lý dữ liệu theo logic từ license.md
             $processedData = $this->processLicenseData($data);
             
+            Log::info('Processed license data', [
+                'processed_data' => $processedData
+            ]);
+            
             // Encode dữ liệu
             $encodedData = base64_encode(json_encode($processedData));
+            
+            Log::info('Encoded license data', [
+                'encoded_length' => strlen($encodedData),
+                'json_error' => json_last_error_msg()
+            ]);
             
             // Cập nhật hoặc tạo setting
             $this->updateOrCreateSetting($this->settingKey, $encodedData);
@@ -50,6 +60,7 @@ class LicenseValidationService
         } catch (Exception $e) {
             Log::error('Failed to update license', [
                 'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
                 'data' => $data
             ]);
             throw $e;
@@ -234,20 +245,38 @@ class LicenseValidationService
      */
     protected function updateOrCreateSetting($key, $value)
     {
-        // Kiểm tra bảng 'settings' trước (ưu tiên)
-        if (Schema::hasTable('settings')) {
-            Log::info('Using settings table for license storage');
-            return $this->updateSettingsTable($key, $value);
+        try {
+            Log::info('updateOrCreateSetting called', [
+                'key' => $key,
+                'value_type' => gettype($value),
+                'value_length' => is_string($value) ? strlen($value) : 'not_string',
+                'is_base64' => is_string($value) && base64_encode(base64_decode($value, true)) === $value
+            ]);
+            
+            // Kiểm tra bảng 'settings' trước (ưu tiên)
+            if (Schema::hasTable('settings')) {
+                Log::info('Using settings table for license storage');
+                return $this->updateSettingsTable($key, $value);
+            }
+            
+            // Nếu không có bảng 'settings', kiểm tra bảng 'options'
+            if (Schema::hasTable('options')) {
+                Log::info('Using options table for license storage');
+                return $this->updateOptionsTable($key, $value);
+            }
+            
+            // Nếu cả 2 bảng đều không có
+            throw new Exception('Neither settings table nor options table exists');
+            
+        } catch (Exception $e) {
+            Log::error('updateOrCreateSetting failed', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'key' => $key,
+                'value_type' => gettype($value)
+            ]);
+            throw $e;
         }
-        
-        // Nếu không có bảng 'settings', kiểm tra bảng 'options'
-        if (Schema::hasTable('options')) {
-            Log::info('Using options table for license storage');
-            return $this->updateOptionsTable($key, $value);
-        }
-        
-        // Nếu cả 2 bảng đều không có
-        throw new Exception('Neither settings table nor options table exists');
     }
 
     /**
@@ -255,22 +284,40 @@ class LicenseValidationService
      */
     protected function updateSettingsTable($key, $value)
     {
-        $exists = DB::table('settings')->where('key', $key)->exists();
-        
-        if ($exists) {
-            DB::table('settings')
-                ->where('key', $key)
-                ->update([
+        try {
+            Log::info('updateSettingsTable called', [
+                'key' => $key,
+                'value_type' => gettype($value),
+                'value_is_string' => is_string($value),
+                'value_sample' => is_string($value) ? substr($value, 0, 100) . '...' : $value
+            ]);
+            
+            $exists = DB::table('settings')->where('key', $key)->exists();
+            
+            if ($exists) {
+                DB::table('settings')
+                    ->where('key', $key)
+                    ->update([
+                        'value' => $value,
+                    ]);
+                Log::info('Updated existing record in settings table', ['key' => $key]);
+            } else {
+                DB::table('settings')->insert([
+                    'key' => $key,
+                    'locale' => '',
                     'value' => $value,
                 ]);
-            Log::info('Updated existing record in settings table', ['key' => $key]);
-        } else {
-            DB::table('settings')->insert([
+                Log::info('Created new record in settings table', ['key' => $key]);
+            }
+            
+        } catch (Exception $e) {
+            Log::error('updateSettingsTable failed', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
                 'key' => $key,
-                'locale' => '',
-                'value' => $value,
+                'value_type' => gettype($value)
             ]);
-            Log::info('Created new record in settings table', ['key' => $key]);
+            throw $e;
         }
     }
 
