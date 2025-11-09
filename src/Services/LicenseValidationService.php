@@ -150,36 +150,91 @@ class LicenseValidationService
      */
     protected function processLicenseData(array $data)
     {
-        // Loại bỏ các trường không cần thiết theo license.md
-        $unset = ['_token', 'redirect', 'setLanguage'];
-        foreach ($unset as $value) {
-            unset($data[$value]);
-        }
-        
-        // Xử lý dữ liệu (removeScriptArray function từ license.md)
-        if (function_exists('removeScriptArray')) {
-            $data = \removeScriptArray($data);
-        } else {
-            // Fallback: basic XSS protection
+        try {
+            Log::info('processLicenseData: Starting data processing', [
+                'input_keys' => array_keys($data)
+            ]);
+            
+            // Loại bỏ các trường không cần thiết theo license.md
+            $unset = ['_token', 'redirect', 'setLanguage'];
+            foreach ($unset as $value) {
+                unset($data[$value]);
+            }
+            
+            // XSS protection - sử dụng fallback an toàn
             $data = $this->removeScriptArrayFallback($data);
+            
+            Log::info('processLicenseData: Data processing completed', [
+                'output_keys' => array_keys($data)
+            ]);
+            
+            return $data;
+            
+        } catch (Exception $e) {
+            Log::error('processLicenseData failed', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'input_data' => $data
+            ]);
+            // Trả về dữ liệu gốc nếu xử lý thất bại
+            return $data;
         }
-        
-        return $data;
     }
 
     /**
      * Fallback cho removeScriptArray function
+     * Xử lý an toàn với nested arrays và các data types khác nhau
      */
     protected function removeScriptArrayFallback(array $data)
     {
-        foreach ($data as $key => $value) {
-            if (is_string($value)) {
-                $data[$key] = strip_tags($value);
-            } elseif (is_array($value)) {
-                $data[$key] = $this->removeScriptArrayFallback($value);
+        try {
+            Log::debug('removeScriptArrayFallback: Processing array', [
+                'array_keys' => array_keys($data)
+            ]);
+            
+            foreach ($data as $key => $value) {
+                if (is_string($value)) {
+                    // XSS protection cho string
+                    $data[$key] = $this->cleanString($value);
+                } elseif (is_array($value)) {
+                    // Đệ quy xử lý nested arrays
+                    $data[$key] = $this->removeScriptArrayFallback($value);
+                } elseif (is_object($value)) {
+                    // Convert object thành array rồi xử lý
+                    $data[$key] = $this->removeScriptArrayFallback((array) $value);
+                } else {
+                    // Giữ nguyên các types khác (int, bool, null, etc.)
+                    $data[$key] = $value;
+                }
             }
+            
+            Log::debug('removeScriptArrayFallback: Processing completed');
+            return $data;
+            
+        } catch (Exception $e) {
+            Log::error('removeScriptArrayFallback failed', [
+                'error' => $e->getMessage(),
+                'data_type' => gettype($data)
+            ]);
+            // Trả về dữ liệu gốc nếu xử lý thất bại
+            return $data;
         }
-        return $data;
+    }
+
+    /**
+     * Clean string data - loại bỏ script tags và XSS
+     */
+    protected function cleanString($value)
+    {
+        if (!is_string($value)) {
+            return $value;
+        }
+        
+        // Basic XSS protection
+        $cleaned = strip_tags($value, '<p><br><strong><em><u><a>');
+        $cleaned = htmlspecialchars($cleaned, ENT_QUOTES, 'UTF-8', false);
+        
+        return $cleaned;
     }
 
     /**
