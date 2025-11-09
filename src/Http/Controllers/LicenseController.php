@@ -138,8 +138,8 @@ class LicenseController extends Controller
         $errors = [];
         $data = $request->all();
 
-        // Required fields from sudo.vn - updated to use expires_at
-        $requiredFields = ['domain', 'expires_at'];
+        // Required fields from sudo.vn - updated to use end_time
+        $requiredFields = ['domain', 'end_time'];
         
         foreach ($requiredFields as $field) {
             if (empty($data[$field])) {
@@ -152,15 +152,15 @@ class LicenseController extends Controller
             $errors[] = "Invalid domain format";
         }
 
-        // Validate expires_at format
-        if (!empty($data['expires_at'])) {
+        // Validate end_time format
+        if (!empty($data['end_time'])) {
             try {
-                $expiryTime = \Carbon\Carbon::parse($data['expires_at']);
+                $expiryTime = \Carbon\Carbon::parse($data['end_time']);
                 if ($expiryTime->isPast()) {
-                    Log::warning('[License API] License already expired', ['expires_at' => $data['expires_at']]);
+                    Log::warning('[License API] License already expired', ['end_time' => $data['end_time']]);
                 }
             } catch (\Exception $e) {
-                $errors[] = "Invalid expires_at format";
+                $errors[] = "Invalid end_time format";
             }
         }
 
@@ -179,7 +179,7 @@ class LicenseController extends Controller
             'domain' => $sudoData['domain'],
             'license_key' => $sudoData['package'] ?? 'sudo-license',
             'status' => 'active',
-            'expires_at' => $sudoData['end_time'],
+            'end_time' => $sudoData['end_time'],
             'features' => [
                 'package' => $sudoData['package'] ?? '',
                 'contact_name' => $sudoData['contact_name'] ?? '',

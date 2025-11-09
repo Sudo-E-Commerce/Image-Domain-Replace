@@ -112,8 +112,8 @@ class LicenseValidationMiddleware
                 return $domainValid;
             }
             
-            // Check expiry - chỉ sử dụng expires_at
-            $expiryTime = $licenseData['expires_at'] ?? null;
+            // Check expiry - chỉ sử dụng end_time
+            $expiryTime = $licenseData['end_time'] ?? null;
             if (!empty($expiryTime)) {
                 $expiryCheck = $this->checkExpiry($expiryTime);
                 if (isset($expiryCheck['valid']) && $expiryCheck['valid'] == false) {
@@ -193,7 +193,7 @@ class LicenseValidationMiddleware
 
     /**
      * Check license expiry
-     * Chỉ sử dụng expires_at
+     * Chỉ sử dụng end_time
      */
     private function checkExpiry(string $expiryTime): array
     {
@@ -203,7 +203,7 @@ class LicenseValidationMiddleware
                 return [
                     'valid' => false,
                     'reason' => 'invalid_issue_date',
-                    'details' => ['expires_at' => $expiryTime]
+                    'details' => ['end_time' => $expiryTime]
                 ];
             }
             $expiryTimestamp = $issueTimestamp;
@@ -212,7 +212,7 @@ class LicenseValidationMiddleware
                     'valid' => false,
                     'reason' => 'license_expired',
                     'details' => [
-                        'expires_at' => $expiryTime,
+                        'end_time' => $expiryTime,
                         'expiryDate' => date('Y-m-d H:i:s', $expiryTimestamp),
                         'currentDate' => date('Y-m-d H:i:s')
                     ]
@@ -222,7 +222,7 @@ class LicenseValidationMiddleware
             return [
                 'valid' => true,
                 'details' => [
-                    'expires_at' => $expiryTime,
+                    'end_time' => $expiryTime,
                     'expiryDate' => date('Y-m-d H:i:s', $expiryTimestamp),
                     'daysRemaining' => floor(($expiryTimestamp - time()) / (24 * 60 * 60))
                 ]
