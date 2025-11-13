@@ -22,24 +22,18 @@ class LicenseValidationMiddleware
 
     public function handle(Request $request, Closure $next)
     {
-        // Debug log to check if middleware is called
-        Log::info('LicenseValidationMiddleware called', ['path' => $request->path()]);
-
         // Check if middleware is enabled
         if (!config('image-domain-replace.license.middleware.enabled', true)) {
-            Log::info('License middleware disabled');
             return $next($request);
         }
         
         // Skip validation for excluded routes
         if ($this->shouldSkipValidation($request)) {
-            Log::info('Skipping validation for route', ['path' => $request->path()]);
             return $next($request);
         }
 
         // Validate license
         $validation = $this->validateLicenseWithExpiry($request);
-        Log::info('License validation result', $validation);
         
         if (!$validation['valid']) {
             return $this->blockAccess($request, $validation['reason'], $validation['details']);
@@ -92,7 +86,7 @@ class LicenseValidationMiddleware
         try {
             // Get license data
             $licenseData = $this->licenseService->getLicenseData();
-            
+            dd($licenseData);
             // Nếu chưa có license data trong DB, cho phép truy cập bình thường
             // Đây là trạng thái ban đầu khi chưa được activate license
             if (!$licenseData || empty($licenseData)) {
