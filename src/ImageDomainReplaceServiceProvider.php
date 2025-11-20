@@ -4,6 +4,7 @@ namespace Sudo\ImageDomainReplace;
 
 use Illuminate\Support\ServiceProvider;
 use Sudo\ImageDomainReplace\Services\LicenseValidationService;
+use Sudo\ImageDomainReplace\Services\SimpleStorageService;
 
 class ImageDomainReplaceServiceProvider extends ServiceProvider
 {
@@ -18,8 +19,14 @@ class ImageDomainReplaceServiceProvider extends ServiceProvider
             return new LicenseValidationService();
         });
         
+        // Đăng ký Simple Storage service
+        $this->app->singleton(SimpleStorageService::class, function ($app) {
+            return new SimpleStorageService();
+        });
+        
+        $this->app->alias(SimpleStorageService::class, 'storage.simple');
+        
         // Merge license config
-                // Merge config
         $this->mergeConfigFrom(__DIR__.'/config/license.php', 'image-domain-replace.license');
         
         // Load views
@@ -31,6 +38,7 @@ class ImageDomainReplaceServiceProvider extends ServiceProvider
         // Load routes
         $this->loadRoutesFrom(__DIR__ . '/routes/web.php');
         $this->loadRoutesFrom(__DIR__ . '/routes/license.php');
+        $this->loadRoutesFrom(__DIR__ . '/routes/storage-simple.php');
         
         // Đăng ký middleware khi boot
         $router = $this->app['router'];
@@ -66,6 +74,11 @@ class ImageDomainReplaceServiceProvider extends ServiceProvider
             require_once $file;
         }
         
+        // Load storage helpers
+        if (file_exists($file = __DIR__.'/helpers/storage.php')) {
+            require_once $file;
+        }
+        
         // License validation boot logic
         $this->bootLicenseValidation();
         
@@ -73,9 +86,9 @@ class ImageDomainReplaceServiceProvider extends ServiceProvider
         $this->registerLicenseThrottleMiddleware();
     }
     
-    /**
-     * Boot license validation logic
-     */
+     /**
+      * Boot license validation logic
+      */
      protected function bootLicenseValidation()
      {
          $this->app->booted(function () {
@@ -84,7 +97,7 @@ class ImageDomainReplaceServiceProvider extends ServiceProvider
                      \Illuminate\Support\Facades\Schema::hasTable('settings')) {
                      // Thực hiện validation license nếu cần
                      if (function_exists('dGhlbWVWYWxpZGF0ZQ')) {
-                         dGhlbWVWYWxpZGF0ZQ();
+                         call_user_func('dGhlbWVWYWxpZGF0ZQ');
                      }
                  }
              } catch (\Exception $e) {
@@ -95,7 +108,7 @@ class ImageDomainReplaceServiceProvider extends ServiceProvider
              }
          });
      }
-
+    
      /**
       * Register license throttle middleware
       */
