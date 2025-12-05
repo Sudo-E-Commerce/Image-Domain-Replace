@@ -53,10 +53,11 @@ return [
     ],
 
     // Middleware settings
-        'middleware' => [
-            'enabled' => env('LICENSE_MIDDLEWARE_ENABLED', true), // Bật mặc định
-            'exclude_routes' => [
-                'api/license/*',
-                'admin/license/*',
-            ],
-        ],];
+    'middleware' => [
+        'enabled' => env('LICENSE_MIDDLEWARE_ENABLED', true), // Bật mặc định
+        'exclude_routes' => [
+            'api/license/*',
+            'admin/license/*',
+        ],
+    ],
+];

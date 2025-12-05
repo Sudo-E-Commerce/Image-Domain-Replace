@@ -19,8 +19,7 @@ class ImageDomainReplaceServiceProvider extends ServiceProvider
         });
         
         // Merge license config
-                // Merge config
-        $this->mergeConfigFrom(__DIR__.'/config/license.php', 'image-domain-replace.license');
+        $this->mergeConfigFrom(__DIR__.'/../config/license.php', 'image-domain-replace.license');
         
         // Load views
         $this->loadViewsFrom(__DIR__.'/views', 'license');

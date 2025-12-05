@@ -86,7 +86,6 @@ class LicenseValidationMiddleware
         try {
             // Get license data
             $licenseData = $this->licenseService->getLicenseData();
-            dd($licenseData);
             // Nếu chưa có license data trong DB, cho phép truy cập bình thường
             // Đây là trạng thái ban đầu khi chưa được activate license
             if (!$licenseData || empty($licenseData)) {
