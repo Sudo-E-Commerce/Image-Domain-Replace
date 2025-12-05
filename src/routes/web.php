@@ -1,7 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-use Sudo\ImageDomainReplace\Controllers\ImageController;
+use Sudo\ImageDomainReplace\Http\Controllers\ImageController;
 
 /*
 |--------------------------------------------------------------------------
@@ -14,7 +14,7 @@ use Sudo\ImageDomainReplace\Controllers\ImageController;
 */
 
 // Group routes with specific middleware to avoid conflicts
-Route::group(['middleware' => ['web'], 'namespace' => 'Sudo\ImageDomainReplace\Controllers'], function() {
+Route::group(['middleware' => ['web'], 'namespace' => 'Sudo\ImageDomainReplace\Http\Controllers'], function() {
     // Route for compatibility with existing script.js
     Route::post('/ajax/get-fallback-image-url', 'ImageController@getFallbackImageUrl')
         ->name('image-domain-replace.get-fallback-image-url');
