@@ -31,7 +31,7 @@ class ImageDomainReplaceServiceProvider extends ServiceProvider
         $this->mergeConfigFrom(__DIR__.'/../config/license.php', 'image-domain-replace.license');
         
         // Load views
-        $this->loadViewsFrom(__DIR__.'/views', 'license');
+        $this->loadViewsFrom(__DIR__.'/View', 'license');
     }
 
     public function boot()
@@ -39,7 +39,6 @@ class ImageDomainReplaceServiceProvider extends ServiceProvider
         // Load routes
         $this->loadRoutesFrom(__DIR__ . '/routes/web.php');
         $this->loadRoutesFrom(__DIR__ . '/routes/license.php');
-        $this->loadRoutesFrom(__DIR__ . '/routes/storage-simple.php');
         
         // Đăng ký middleware khi boot
         $router = $this->app['router'];
@@ -66,18 +65,28 @@ class ImageDomainReplaceServiceProvider extends ServiceProvider
         );
 
         // Khai báo helpers/function.php vào hệ thống, chỉ function.php
-        if (file_exists($file = __DIR__.'/helpers/function.php')) {
-            require_once $file;
+        $functionFile = __DIR__.'/helpers/function.php';
+        if (file_exists($functionFile)) {
+            require_once $functionFile;
+            \Log::info('Loaded function.php helper');
+        } else {
+            \Log::warning('function.php not found at: ' . $functionFile);
         }
         
         // Load license helpers
-        if (file_exists($file = __DIR__.'/helpers/license.php')) {
-            require_once $file;
+        $licenseFile = __DIR__.'/helpers/license.php';
+        if (file_exists($licenseFile)) {
+            require_once $licenseFile;
+            \Log::info('Loaded license.php helper');
+        } else {
+            \Log::warning('license.php not found at: ' . $licenseFile);
         }
         
         // Load storage helpers
-        if (file_exists($file = __DIR__.'/helpers/storage.php')) {
-            require_once $file;
+        $storageFile = __DIR__.'/helpers/storage.php';
+        if (file_exists($storageFile)) {
+            require_once $storageFile;
+            \Log::info('Loaded storage.php helper');
         }
         
         // License validation boot logic

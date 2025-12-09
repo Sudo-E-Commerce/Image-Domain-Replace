@@ -35,18 +35,18 @@ if (!function_exists('storage_quick_check')) {
      */
     function storage_quick_check()
     {
-        try {
+        // try {
             $service = app(SimpleStorageService::class);
             return $service->quickCheck();
-        } catch (Exception $e) {
-            Log::error('storage_quick_check error: ' . $e->getMessage());
-            return [
-                'needs_attention' => false,
-                'usage_percentage' => 0,
-                'status' => 'error',
-                'messages' => []
-            ];
-        }
+        // } catch (Exception $e) {
+        //     Log::error('storage_quick_check error: ' . $e->getMessage());
+        //     return [
+        //         'needs_attention' => false,
+        //         'usage_percentage' => 0,
+        //         'status' => 'error',
+        //         'messages' => []
+        //     ];
+        // }
     }
 }
 
@@ -113,23 +113,5 @@ if (!function_exists('has_additional_storage_expiring')) {
         $status = check_storage_usage();
         $additional = $status['additional_storage'] ?? [];
         return $additional['expiring_soon'] ?? false;
-    }
-}
-
-if (!function_exists('clear_storage_cache')) {
-    /**
-     * Clear storage cache
-     * 
-     * @return bool
-     */
-    function clear_storage_cache()
-    {
-        try {
-            $service = app(SimpleStorageService::class);
-            return $service->clearCache();
-        } catch (Exception $e) {
-            Log::error('clear_storage_cache error: ' . $e->getMessage());
-            return false;
-        }
     }
 }

@@ -6,6 +6,9 @@ use Exception;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Aws\S3\S3Client;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Simple Storage Check Service
@@ -13,8 +16,11 @@ use Illuminate\Support\Facades\Storage;
  * Chỉ check dung lượng từ theme_validate và ngày hết hạn
  * Tương thích với PHP 7.1+
  */
+
+    
 class SimpleStorageService
 {
+    protected $settingKey = 'theme_validate';
     /**
      * Cache duration: 30 minutes
      */
@@ -27,31 +33,23 @@ class SimpleStorageService
      */
     public function getStorageStatus()
     {
-        $cacheKey = 'simple_storage_status';
-        
-        if (Cache::has($cacheKey)) {
-            return Cache::get($cacheKey);
-        }
-        
-        try {
+        // try {
             // Lấy dữ liệu từ theme_validate
             $themeData = $this->getThemeValidateData();
+
+            // $licenseData = $this->licenseService->getLicenseData();
             
             // Tính dung lượng hiện tại
             $currentSize = $this->getCurrentStorageSize();
-            
+
             // Phân tích storage status
             $result = $this->analyzeStorageStatus($currentSize, $themeData);
-            
-            // Cache kết quả
-            Cache::put($cacheKey, $result, self::CACHE_DURATION);
-            
             return $result;
             
-        } catch (Exception $e) {
-            Log::error('Simple storage check failed: ' . $e->getMessage());
-            return $this->getErrorStatus();
-        }
+        // } catch (Exception $e) {
+        //     Log::error('Simple storage check failed: ' . $e->getMessage());
+        //     return $this->getErrorStatus();
+        // }
     }
     
     /**
@@ -62,15 +60,45 @@ class SimpleStorageService
     private function getThemeValidateData()
     {
         try {
-            // Sử dụng helper function có sẵn
-            if (function_exists('getOption')) {
-                $data = call_user_func('getOption', 'theme_validate', 'all', false);
-                return is_array($data) ? $data : [];
+            $setting = null;
+            
+            // Kiểm tra bảng 'settings' trước (ưu tiên)
+            if (Schema::hasTable('settings')) {
+                $setting = DB::table('settings')
+                    ->where('key', $this->settingKey)
+                    ->first();
+                Log::debug('Checked settings table', ['found' => !is_null($setting)]);
             }
             
-            return [];
+            // Nếu không tìm thấy trong settings, kiểm tra bảng 'options'
+            if (!$setting && Schema::hasTable('options')) {
+                $setting = DB::table('options')
+                    ->where('name', $this->settingKey)
+                    ->first();
+                Log::debug('Checked options table', ['found' => !is_null($setting)]);
+            }
+            
+            // Nếu không tìm thấy record nào
+            if (!$setting) {
+                Log::info('No license data found in any table');
+                return [];
+            }
+            
+            // Decode dữ liệu
+            $decodedData = json_decode(base64_decode($setting->value), true);
+            
+            Log::info('License data retrieved successfully', [
+                'data_keys' => array_keys($decodedData ?: []),
+                'data_length' => strlen($setting->value)
+            ]);
+            
+            return $decodedData ?: [];
+            
         } catch (Exception $e) {
-            Log::warning('Cannot get theme_validate data: ' . $e->getMessage());
+            Log::error('Failed to get license data', [
+                'error' => $e->getMessage(),
+                'setting_key' => $this->settingKey
+            ]);
             return [];
         }
     }
@@ -84,8 +112,11 @@ class SimpleStorageService
     {
         try {
             // Sử dụng phương pháp đơn giản nhất
-            $driver = config('filesystems.default', 'local');
-            
+            $driver = config('app.storage_type') ?? config('SudoMedia.storage_type', 'do');
+            if ($driver == 'digitalocean') {
+                $driver = 'do';
+            }
+
             if ($driver === 'local') {
                 return $this->getLocalStorageSize();
             } else {
@@ -181,20 +212,50 @@ class SimpleStorageService
     private function getCloudStorageSize()
     {
         try {
-            $disk = Storage::disk();
-            $files = $disk->allFiles();
-            $totalSize = 0;
+            $disk = getStorageDiskIDR();
+            // $files = $disk->allFiles();
+            $config = config("image-domain-replace.license.storage");
             
-            foreach ($files as $file) {
-                try {
-                    $totalSize += $disk->size($file);
-                } catch (Exception $e) {
-                    // Skip files that can't be accessed
+            $s3Client = new S3Client([
+                'region'  => $config['region'],
+                'endpoint'  => $config['endpoint'],
+                'version' => 'latest',
+                'credentials' => [
+                    'key'    => $config['key'],
+                    'secret' => $config['secret'],
+                ],
+                'use_path_style_endpoint' => env('AWS_USE_PATH_STYLE_ENDPOINT', false)
+            ]);
+
+            $bucket = $config['bucket'];
+            $size = 0;
+
+            $params = [
+                'Bucket' => $bucket,
+                'MaxKeys' => 1000,
+            ];
+
+            $size = 0;
+
+            do {
+                $result = $s3Client->listObjectsV2($params);
+
+                if (!empty($result['Contents'])) {
+                    foreach ($result['Contents'] as $obj) {
+                        $size += $obj['Size'];
+                    }
                 }
-            }
-            
-            return $totalSize;
-            
+
+                // Nếu còn trang tiếp theo → lấy ContinuationToken
+                if ($result['IsTruncated']) {
+                    $params['ContinuationToken'] = $result['NextContinuationToken'];
+                } else {
+                    break;
+                }
+
+            } while (true);
+
+            return $size;
         } catch (Exception $e) {
             return 0;
         }
@@ -216,16 +277,7 @@ class SimpleStorageService
         
         // Xác định storage limit theo package nếu không có storage_capacity
         if (!$storageCapacity) {
-            $packageLimits = [
-                'vip' => 4294967296,      // 4GB
-                'vip_base' => 2147483648, // 2GB  
-                'base' => 2147483648,     // 2GB
-                'pro' => 4294967296,      // 4GB
-                'vip_pro' => 4294967296,  // 4GB
-                'basic' => 1073741824     // 1GB (default)
-            ];
-            
-            $storageCapacity = isset($packageLimits[$package]) ? $packageLimits[$package] : $packageLimits['basic'];
+            $storageCapacity = 2147483648; // Mặc định 2GB
         }
         
         // Xử lý additional storage
@@ -382,17 +434,6 @@ class SimpleStorageService
             ],
             'last_checked' => date('c')
         ];
-    }
-    
-    /**
-     * Clear cache
-     * 
-     * @return bool
-     */
-    public function clearCache()
-    {
-        Cache::forget('simple_storage_status');
-        return true;
     }
     
     /**
