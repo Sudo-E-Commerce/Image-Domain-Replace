@@ -46,7 +46,7 @@ class StorageNotificationMiddleware
                             return response()->json([
                                 'success' => false,
                                 'error' => 'Dung lượng lưu trữ đã đầy. Vui lòng liên hệ quản trị viên để nâng cấp.',
-                                'message' => 'Storage full - Upload blocked'
+                                'message' => 'Dung lượng lưu trữ đã đầy. Không thể upload file.'
                             ], 507); // 507 Insufficient Storage
                         }
                         
@@ -284,26 +284,43 @@ class StorageNotificationMiddleware
             
             $status = $storageStatus['status'];
             $isFull = $status === 'full';
-            $alertClass = $isFull ? 'danger' : 'warning';
+            $bgColor = $isFull ? '#f8d7da' : '#fff3cd';
+            $textColor = $isFull ? '#721c24' : '#856404';
             $borderColor = $isFull ? '#dc3545' : '#ffc107';
-            $icon = $isFull ? 'exclamation-triangle' : 'warning';
+            $icon = $isFull ? '⚠' : '⚠';
             $title = $isFull ? 'Dung lượng website đã đầy' : 'Cảnh báo dung lượng website';
-            $usagePercentage = number_format($storageStatus['usage_percentage'], 1);
             
-            $html = '<div class="alert alert-' . $alertClass . ' storage-alert" style="margin: 15px; border-left: 4px solid ' . $borderColor . '; position: relative; z-index: 9999;">';
-            $html .= '<button type="button" class="close" data-dismiss="alert" aria-label="Close">';
+            // Inline CSS hoàn chỉnh, không phụ thuộc Bootstrap
+            $alertStyle = 'position: relative; z-index: 9999; margin: 15px; padding: 15px 50px 15px 15px; ' .
+                         'background-color: ' . $bgColor . '; color: ' . $textColor . '; ' .
+                         'border: 1px solid ' . $borderColor . '; border-left: 4px solid ' . $borderColor . '; ' .
+                         'border-radius: 4px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; ' .
+                         'font-size: 14px; line-height: 1.5;';
+            
+            $closeStyle = 'position: absolute; top: 10px; right: 15px; background: none; border: none; ' .
+                         'font-size: 24px; font-weight: bold; line-height: 1; color: ' . $textColor . '; ' .
+                         'opacity: 0.5; cursor: pointer; padding: 0; width: 24px; height: 24px;';
+            
+            $titleStyle = 'margin: 0 0 10px 0; padding: 0; font-size: 16px; font-weight: bold; color: ' . $textColor . ';';
+            
+            $ulStyle = 'margin: 0 0 10px 0; padding-left: 20px; list-style-type: disc;';
+            
+            $liStyle = 'margin: 5px 0; color: ' . $textColor . ';';
+            
+            $html = '<div class="storage-alert" style="' . $alertStyle . '">';
+            $html .= '<button type="button" onclick="this.parentElement.style.display=\'none\'" style="' . $closeStyle . '" aria-label="Close">';
             $html .= '<span aria-hidden="true">&times;</span>';
             $html .= '</button>';
-            $html .= '<h4 style="margin-top: 0;">';
-            $html .= '<i class="fa fa-' . $icon . '"></i> ';
+            $html .= '<h4 style="' . $titleStyle . '">';
+            $html .= '<span style="font-size: 18px; margin-right: 8px;">' . $icon . '</span>';
             $html .= htmlspecialchars($title);
             $html .= '</h4>';
             
             // Messages
             if (!empty($storageStatus['messages'])) {
-                $html .= '<ul style="margin-bottom: 10px;">';
+                $html .= '<ul style="' . $ulStyle . '">';
                 foreach ($storageStatus['messages'] as $type => $message) {
-                    $html .= '<li>' . htmlspecialchars($message) . '</li>';
+                    $html .= '<li style="' . $liStyle . '">' . htmlspecialchars($message) . '</li>';
                 }
                 $html .= '</ul>';
             }
