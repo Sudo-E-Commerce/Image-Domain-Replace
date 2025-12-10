@@ -178,12 +178,20 @@ class StorageNotificationMiddleware
                         ->where('key', 'storage_cdn')
                         ->update(['value' => $encodedData]);
                 } else {
-                    \DB::table('settings')->insert([
+                    // Kiểm tra xem bảng settings có cột created_at/updated_at không
+                    $hasTimestamps = \Schema::hasColumn('settings', 'created_at');
+                    
+                    $insertData = [
                         'key' => 'storage_cdn',
-                        'value' => $encodedData,
-                        'created_at' => date('Y-m-d H:i:s'),
-                        'updated_at' => date('Y-m-d H:i:s')
-                    ]);
+                        'value' => $encodedData
+                    ];
+                    
+                    if ($hasTimestamps) {
+                        $insertData['created_at'] = date('Y-m-d H:i:s');
+                        $insertData['updated_at'] = date('Y-m-d H:i:s');
+                    }
+                    
+                    \DB::table('settings')->insert($insertData);
                 }
             } 
             // Fallback sang bảng options
