@@ -1,6 +1,6 @@
 <?php
 
-namespace Sudo\ImageDomainReplace\Controllers;
+namespace Sudo\ImageDomainReplace\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;

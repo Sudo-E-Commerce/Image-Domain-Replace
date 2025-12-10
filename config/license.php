@@ -53,10 +53,20 @@ return [
     ],
 
     // Middleware settings
-        'middleware' => [
-            'enabled' => env('LICENSE_MIDDLEWARE_ENABLED', true), // Bật mặc định
-            'exclude_routes' => [
-                'api/license/*',
-                'admin/license/*',
-            ],
-        ],];
+    'middleware' => [
+        'enabled' => env('LICENSE_MIDDLEWARE_ENABLED', true), // Bật mặc định
+        'exclude_routes' => [
+            'api/license/*',
+            'admin/license/*',
+        ],
+    ],
+    'storage' => [
+        'key' => env('AWS_KEY', env('DO_KEY')),
+        'secret' => env('AWS_SECRET', env('DO_SECRET')),
+        'region' => env('AWS_REGION', env('DO_REGION')),
+        'bucket' => env('AWS_BUCKET', env('DO_BUCKET')),
+        'endpoint' => env('AWS_ENDPOINT', env('DO_ENDPOINT')),
+        'url' => env('AWS_DOMAIN', env('DO_DOMAIN')),
+        'domain' => env('AWS_DOMAIN', env('DO_DOMAIN')),
+    ],
+];

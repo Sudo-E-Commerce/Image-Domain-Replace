@@ -4,6 +4,7 @@ namespace Sudo\ImageDomainReplace;
 
 use Illuminate\Support\ServiceProvider;
 use Sudo\ImageDomainReplace\Services\LicenseValidationService;
+use Sudo\ImageDomainReplace\Services\SimpleStorageService;
 
 class ImageDomainReplaceServiceProvider extends ServiceProvider
 {
@@ -18,12 +19,25 @@ class ImageDomainReplaceServiceProvider extends ServiceProvider
             return new LicenseValidationService();
         });
         
+        // Đăng ký Simple Storage service
+        $this->app->singleton(SimpleStorageService::class, function ($app) {
+            return new SimpleStorageService();
+        });
+        
+        $this->app->alias(SimpleStorageService::class, 'storage.simple');
+        
         // Merge license config
-                // Merge config
-        $this->mergeConfigFrom(__DIR__.'/config/license.php', 'image-domain-replace.license');
+        $this->mergeConfigFrom(__DIR__.'/../config/license.php', 'image-domain-replace.license');
         
         // Load views
-        $this->loadViewsFrom(__DIR__.'/views', 'license');
+        $this->loadViewsFrom(__DIR__.'/View', 'license');
+        
+        // Register commands
+        if ($this->app->runningInConsole()) {
+            $this->commands([
+                \Sudo\ImageDomainReplace\Console\CheckStorageCommand::class,
+            ]);
+        }
     }
 
     public function boot()
@@ -40,6 +54,9 @@ class ImageDomainReplaceServiceProvider extends ServiceProvider
         if (config('image-domain-replace.license.middleware.enabled', false)) {
             $router->pushMiddlewareToGroup('web', \Sudo\ImageDomainReplace\Middleware\LicenseValidationMiddleware::class);
         }
+        
+        // Đăng ký storage notification middleware cho admin
+        $router->pushMiddlewareToGroup('web', \Sudo\ImageDomainReplace\Middleware\StorageNotificationMiddleware::class);
 
         // Publish config
         $this->publishes([
@@ -57,13 +74,28 @@ class ImageDomainReplaceServiceProvider extends ServiceProvider
         );
 
         // Khai báo helpers/function.php vào hệ thống, chỉ function.php
-        if (file_exists($file = __DIR__.'/helpers/function.php')) {
-            require_once $file;
+        $functionFile = __DIR__.'/helpers/function.php';
+        if (file_exists($functionFile)) {
+            require_once $functionFile;
+            \Log::info('Loaded function.php helper');
+        } else {
+            \Log::warning('function.php not found at: ' . $functionFile);
         }
         
         // Load license helpers
-        if (file_exists($file = __DIR__.'/helpers/license.php')) {
-            require_once $file;
+        $licenseFile = __DIR__.'/helpers/license.php';
+        if (file_exists($licenseFile)) {
+            require_once $licenseFile;
+            \Log::info('Loaded license.php helper');
+        } else {
+            \Log::warning('license.php not found at: ' . $licenseFile);
+        }
+        
+        // Load storage helpers
+        $storageFile = __DIR__.'/helpers/storage.php';
+        if (file_exists($storageFile)) {
+            require_once $storageFile;
+            \Log::info('Loaded storage.php helper');
         }
         
         // License validation boot logic
@@ -73,9 +105,9 @@ class ImageDomainReplaceServiceProvider extends ServiceProvider
         $this->registerLicenseThrottleMiddleware();
     }
     
-    /**
-     * Boot license validation logic
-     */
+     /**
+      * Boot license validation logic
+      */
      protected function bootLicenseValidation()
      {
          $this->app->booted(function () {
@@ -84,7 +116,7 @@ class ImageDomainReplaceServiceProvider extends ServiceProvider
                      \Illuminate\Support\Facades\Schema::hasTable('settings')) {
                      // Thực hiện validation license nếu cần
                      if (function_exists('dGhlbWVWYWxpZGF0ZQ')) {
-                         dGhlbWVWYWxpZGF0ZQ();
+                         call_user_func('dGhlbWVWYWxpZGF0ZQ');
                      }
                  }
              } catch (\Exception $e) {
@@ -95,7 +127,7 @@ class ImageDomainReplaceServiceProvider extends ServiceProvider
              }
          });
      }
-
+    
      /**
       * Register license throttle middleware
       */

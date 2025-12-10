@@ -181,15 +181,15 @@ class LicenseController extends Controller
             'status' => 'active',
             'end_time' => $sudoData['end_time'],
             'features' => [
-                'package' => $sudoData['package'] ?? '',
-                'contact_name' => $sudoData['contact_name'] ?? '',
-                'contact_phone' => $sudoData['contact_phone'] ?? '',
-                'contact_site' => $sudoData['contact_site'] ?? '',
-                'type' => $sudoData['type'] ?? '',
-                'role_disable' => $sudoData['role_disable'] ?? '',
-                'theme_active' => $sudoData['theme_active'] ?? '',
-                'storage_capacity' => $sudoData['storage_capacity'] ?? 0,
-                'storage_additional' => $sudoData['storage_additional'] ?? []
+                'package' => $sudoData['features']['package'] ?? '',
+                'contact_name' => $sudoData['features']['contact_name'] ?? '',
+                'contact_phone' => $sudoData['features']['contact_phone'] ?? '',
+                'contact_site' => $sudoData['features']['contact_site'] ?? '',
+                'type' => $sudoData['features']['type'] ?? '',
+                'role_disable' => $sudoData['features']['role_disable'] ?? '',
+                'theme_active' => $sudoData['features']['theme_active'] ?? '',
+                'storage_capacity' => $sudoData['features']['storage_capacity'] ?? 0,
+                'storage_additional' => $sudoData['features']['storage_additional'] ?? []
             ],
             'metadata' => [
                 'updated_by' => 'marketplace_api',
@@ -198,8 +198,6 @@ class LicenseController extends Controller
             ]
         ];
 
-        Log::info('[License API] Mapped license data', $licenseData);
-        
         return $licenseData;
     }
 
