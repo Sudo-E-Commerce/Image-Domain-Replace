@@ -79,7 +79,7 @@ class SimpleStorageService
     private function analyzeStorageStatus($currentSize, $themeData)
     {
         // Lấy storage capacity từ theme_validate
-        $storageCapacity = isset($themeData['features']['storage_capacity']) ? (int) $themeData['features']['storage_capacity'] : 0;
+        $storageCapacity = isset($themeData['storage_capacity']) ? (int) $themeData['storage_capacity'] : 0;
         $storageAdditional = isset($themeData['storage_additional']) ? $themeData['storage_additional'] : [];
         $package = isset($themeData['package']) ? $themeData['package'] : 'basic';
         
