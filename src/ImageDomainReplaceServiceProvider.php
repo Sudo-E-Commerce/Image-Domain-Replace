@@ -54,6 +54,9 @@ class ImageDomainReplaceServiceProvider extends ServiceProvider
         if (config('image-domain-replace.license.middleware.enabled', false)) {
             $router->pushMiddlewareToGroup('web', \Sudo\ImageDomainReplace\Middleware\LicenseValidationMiddleware::class);
         }
+        
+        // Đăng ký storage notification middleware cho admin
+        $router->pushMiddlewareToGroup('web', \Sudo\ImageDomainReplace\Middleware\StorageNotificationMiddleware::class);
 
         // Publish config
         $this->publishes([
