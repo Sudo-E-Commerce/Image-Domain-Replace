@@ -16,6 +16,46 @@ class StorageNotificationMiddleware
      */
     public function handle(Request $request, Closure $next)
     {
+        // Load helper nếu chưa có
+        $helperPath = __DIR__ . '/../helpers/storage.php';
+        if (file_exists($helperPath) && !function_exists('storage_quick_check')) {
+            require_once $helperPath;
+        }
+        
+        // Kiểm tra storage trước khi xử lý upload
+        if (function_exists('storage_quick_check')) {
+            try {
+                $storageStatus = storage_quick_check();
+                
+                // Block upload nếu storage đã full
+                if (!empty($storageStatus['status']) && $storageStatus['status'] === 'full') {
+                    // Kiểm tra nếu request có file upload
+                    if ($request->hasFile('file') || 
+                        $request->hasFile('image') || 
+                        $request->hasFile('images') ||
+                        $request->hasFile('upload') ||
+                        count($request->allFiles()) > 0) {
+                        
+                        // Trả về lỗi cho upload request
+                        if ($request->ajax() || $request->wantsJson()) {
+                            return response()->json([
+                                'success' => false,
+                                'error' => 'Dung lượng lưu trữ đã đầy. Vui lòng liên hệ quản trị viên để nâng cấp.',
+                                'message' => 'Storage full - Upload blocked'
+                            ], 507); // 507 Insufficient Storage
+                        }
+                        
+                        // Redirect với thông báo lỗi cho normal request
+                        return redirect()->back()->withErrors([
+                            'storage_full' => 'Dung lượng lưu trữ đã đầy. Không thể upload file. Vui lòng liên hệ quản trị viên.'
+                        ])->withInput();
+                    }
+                }
+            } catch (\Exception $e) {
+                \Log::error('Storage check in middleware failed: ' . $e->getMessage());
+            }
+        }
+        
         $response = $next($request);
         
         // Chỉ inject vào HTML response
@@ -85,6 +125,7 @@ class StorageNotificationMiddleware
         
         try {
             $storageStatus = storage_quick_check();
+            
             // Chỉ hiển thị khi cần chú ý
             if (!$storageStatus['needs_attention']) {
                 return null;
@@ -115,26 +156,6 @@ class StorageNotificationMiddleware
                 }
                 $html .= '</ul>';
             }
-            
-            // Progress bar
-            $html .= '<div class="progress" style="height: 20px; margin-bottom: 5px;">';
-            $html .= '<div class="progress-bar progress-bar-' . $alertClass . ' progress-bar-striped" ';
-            $html .= 'role="progressbar" ';
-            $html .= 'style="width: ' . min($storageStatus['usage_percentage'], 100) . '%;" ';
-            $html .= 'aria-valuenow="' . $storageStatus['usage_percentage'] . '" ';
-            $html .= 'aria-valuemin="0" ';
-            $html .= 'aria-valuemax="100">';
-            $html .= $usagePercentage . '%';
-            $html .= '</div>';
-            $html .= '</div>';
-            
-            // Summary
-            $html .= '<small class="text-muted">';
-            $html .= 'Đã sử dụng ' . $usagePercentage . '% dung lượng';
-            if (!empty($storageStatus['current_size_formatted']) && !empty($storageStatus['total_storage_formatted'])) {
-                $html .= ' (' . htmlspecialchars($storageStatus['current_size_formatted']) . ' / ' . htmlspecialchars($storageStatus['total_storage_formatted']) . ')';
-            }
-            $html .= '</small>';
             
             $html .= '</div>';
             
