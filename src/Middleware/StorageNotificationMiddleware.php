@@ -16,6 +16,11 @@ class StorageNotificationMiddleware
      */
     public function handle(Request $request, Closure $next)
     {
+        // Auto sync storage nếu chưa chạy hôm nay (chỉ cho admin routes)
+        if ($request->is('admin*')) {
+            $this->autoSyncStorageIfNeeded();
+        }
+        
         // Load helper nếu chưa có
         $helperPath = __DIR__ . '/../helpers/storage.php';
         if (file_exists($helperPath) && !function_exists('storage_quick_check')) {
@@ -87,6 +92,144 @@ class StorageNotificationMiddleware
         }
         
         return $response;
+    }
+    
+    /**
+     * Tự động sync storage nếu chưa chạy hôm nay
+     * Chạy 1 lần/ngày khi admin vào lần đầu
+     * 
+     * @return void
+     */
+    protected function autoSyncStorageIfNeeded()
+    {
+        try {
+            $today = date('Y-m-d');
+            $cacheKey = 'storage_cdn_last_sync_date';
+            $lastSyncDate = \Cache::get($cacheKey);
+            
+            // Nếu đã sync hôm nay rồi thì bỏ qua
+            if ($lastSyncDate === $today) {
+                return;
+            }
+            
+            // Chạy sync storage từ S3/Cloud
+            $this->syncStorageFromCloud();
+            
+            // Lưu cache để không chạy lại trong ngày
+            \Cache::put($cacheKey, $today, 86400); // Cache 24h
+            
+            \Log::info('Storage auto-synced successfully', ['date' => $today]);
+            
+        } catch (\Exception $e) {
+            \Log::error('Auto sync storage failed: ' . $e->getMessage());
+        }
+    }
+    
+    /**
+     * Sync storage từ cloud và lưu vào DB
+     * 
+     * @return void
+     */
+    protected function syncStorageFromCloud()
+    {
+        try {
+            // Lấy service
+            $service = app(\Sudo\ImageDomainReplace\Services\SimpleStorageService::class);
+            
+            // Tính dung lượng thực tế từ cloud
+            $currentSize = $service->getCurrentStorageSize();
+            // Lưu vào DB
+            $this->saveStorageCdnToDB($currentSize);
+            
+            // Clear cache của quick check để reload dữ liệu mới
+            \Cache::forget('storage_quick_check');
+            
+        } catch (\Exception $e) {
+            \Log::error('Sync storage from cloud failed: ' . $e->getMessage());
+            throw $e;
+        }
+    }
+    
+    /**
+     * Lưu storage_cdn vào database
+     * 
+     * @param int $size Size in bytes
+     * @return void
+     */
+    protected function saveStorageCdnToDB($size)
+    {
+        try {
+            $data = json_encode([
+                'size' => $size,
+                'size_formatted' => $this->formatBytes($size),
+                'updated_at' => date('Y-m-d H:i:s'),
+                'source' => 'auto_sync'
+            ]);
+            
+            // Encode base64 trước khi lưu vào DB
+            $encodedData = base64_encode($data);
+            
+            // Kiểm tra bảng settings trước
+            if (\Schema::hasTable('settings')) {
+                $exists = \DB::table('settings')->where('key', 'storage_cdn')->exists();
+                
+                if ($exists) {
+                    \DB::table('settings')
+                        ->where('key', 'storage_cdn')
+                        ->update(['value' => $encodedData]);
+                } else {
+                    \DB::table('settings')->insert([
+                        'key' => 'storage_cdn',
+                        'value' => $encodedData,
+                        'created_at' => date('Y-m-d H:i:s'),
+                        'updated_at' => date('Y-m-d H:i:s')
+                    ]);
+                }
+            } 
+            // Fallback sang bảng options
+            elseif (\Schema::hasTable('options')) {
+                $exists = \DB::table('options')->where('name', 'storage_cdn')->exists();
+                
+                if ($exists) {
+                    \DB::table('options')
+                        ->where('name', 'storage_cdn')
+                        ->update(['value' => $encodedData]);
+                } else {
+                    \DB::table('options')->insert([
+                        'name' => 'storage_cdn',
+                        'value' => $encodedData
+                    ]);
+                }
+            }
+            
+            \Log::info('Storage CDN saved to DB', ['size' => $size]);
+            
+        } catch (\Exception $e) {
+            \Log::error('Save storage_cdn to DB failed: ' . $e->getMessage());
+            throw $e;
+        }
+    }
+    
+    /**
+     * Format bytes to human readable
+     * 
+     * @param int $bytes
+     * @return string
+     */
+    protected function formatBytes($bytes)
+    {
+        $units = ['B', 'KB', 'MB', 'GB', 'TB'];
+        
+        if ($bytes == 0) {
+            return '0 B';
+        }
+        
+        $pow = floor(log($bytes) / log(1024));
+        $pow = min($pow, count($units) - 1);
+        
+        $bytes /= pow(1024, $pow);
+        
+        return round($bytes, 2) . ' ' . $units[$pow];
     }
     
     /**

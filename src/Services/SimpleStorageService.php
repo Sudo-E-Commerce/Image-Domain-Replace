@@ -299,20 +299,177 @@ class SimpleStorageService
                 return 0;
             }
             
-            // Parse dữ liệu
+            // Parse dữ liệu với base64_decode
             $decoded = base64_decode($setting->value);
             $data = json_decode($decoded, true);
             
             if (isset($data['size'])) {
                 return (int) $data['size'];
             }
-            if(isset($data['size_bytes'])) {
+            if (isset($data['size_bytes'])) {
                 return (int) $data['size_bytes'];
             }
+            
+            // Nếu lưu trực tiếp là số
+            if (is_numeric($decoded)) {
+                return (int) $decoded;
+            }
+            
             return 0;
             
         } catch (Exception $e) {
             Log::error('Failed to get storage_cdn from DB: ' . $e->getMessage());
+            return 0;
+        }
+    }
+    
+    /**
+     * Get current storage size từ cloud/local
+     * Public method để middleware có thể gọi
+     * 
+     * @return int Size in bytes
+     */
+    public function getCurrentStorageSize()
+    {
+        try {
+            $driver = config('app.storage_type') ?? config('SudoMedia.storage_type', 'do');
+            if ($driver == 'digitalocean') {
+                $driver = 'do';
+            }
+
+            if ($driver === 'local') {
+                return $this->getLocalStorageSize();
+            } else {
+                return $this->getCloudStorageSize();
+            }
+            
+        } catch (Exception $e) {
+            Log::warning('Cannot calculate storage size: ' . $e->getMessage());
+            return 0;
+        }
+    }
+    
+    /**
+     * Get local storage size
+     * 
+     * @return int
+     */
+    private function getLocalStorageSize()
+    {
+        $basePath = public_path();
+        
+        if (function_exists('shell_exec') && PHP_OS_FAMILY !== 'Windows') {
+            $command = "du -sb " . escapeshellarg($basePath) . " 2>/dev/null | cut -f1";
+            $output = shell_exec($command);
+            
+            if ($output !== null && is_numeric(trim($output))) {
+                return (int) trim($output);
+            }
+        }
+        
+        return $this->calculateDirectorySize($basePath);
+    }
+    
+    /**
+     * Calculate directory size recursively
+     * 
+     * @param string $directory
+     * @param int $depth
+     * @return int
+     */
+    private function calculateDirectorySize($directory, $depth = 0)
+    {
+        if ($depth > 5 || !is_dir($directory)) {
+            return 0;
+        }
+        
+        $size = 0;
+        $excludeDirs = ['vendor', 'node_modules', '.git', 'storage/logs'];
+        
+        try {
+            $iterator = new \DirectoryIterator($directory);
+            
+            foreach ($iterator as $fileInfo) {
+                if ($fileInfo->isDot()) {
+                    continue;
+                }
+                
+                $relativePath = str_replace(public_path() . DIRECTORY_SEPARATOR, '', $fileInfo->getPathname());
+                
+                $skip = false;
+                foreach ($excludeDirs as $excludeDir) {
+                    if (strpos($relativePath, $excludeDir) === 0) {
+                        $skip = true;
+                        break;
+                    }
+                }
+                
+                if ($skip) {
+                    continue;
+                }
+                
+                if ($fileInfo->isFile()) {
+                    $size += $fileInfo->getSize();
+                } elseif ($fileInfo->isDir()) {
+                    $size += $this->calculateDirectorySize($fileInfo->getPathname(), $depth + 1);
+                }
+            }
+        } catch (Exception $e) {
+            // Silent fail
+        }
+        
+        return $size;
+    }
+    
+    /**
+     * Get cloud storage size từ S3/DO
+     * 
+     * @return int
+     */
+    private function getCloudStorageSize()
+    {
+        try {
+            $config = config("image-domain-replace.license.storage");
+            
+            $s3Client = new S3Client([
+                'region'  => $config['region'],
+                'endpoint'  => $config['endpoint'],
+                'version' => 'latest',
+                'credentials' => [
+                    'key'    => $config['key'],
+                    'secret' => $config['secret'],
+                ],
+                'use_path_style_endpoint' => env('AWS_USE_PATH_STYLE_ENDPOINT', false)
+            ]);
+
+            $bucket = $config['bucket'];
+            $params = [
+                'Bucket' => $bucket,
+                'MaxKeys' => 1000,
+            ];
+
+            $size = 0;
+
+            do {
+                $result = $s3Client->listObjectsV2($params);
+
+                if (!empty($result['Contents'])) {
+                    foreach ($result['Contents'] as $obj) {
+                        $size += $obj['Size'];
+                    }
+                }
+
+                if ($result['IsTruncated']) {
+                    $params['ContinuationToken'] = $result['NextContinuationToken'];
+                } else {
+                    break;
+                }
+
+            } while (true);
+
+            return $size;
+        } catch (Exception $e) {
+            Log::error('Get cloud storage size failed: ' . $e->getMessage());
             return 0;
         }
     }
