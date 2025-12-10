@@ -10,14 +10,6 @@ use Aws\S3\S3Client;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\DB;
 
-/**
- * Simple Storage Check Service
- * 
- * Chỉ check dung lượng từ theme_validate và ngày hết hạn
- * Tương thích với PHP 7.1+
- */
-
-    
 class SimpleStorageService
 {
     protected $settingKey = 'theme_validate';
@@ -25,32 +17,6 @@ class SimpleStorageService
      * Cache duration: 30 minutes
      */
     const CACHE_DURATION = 1800;
-    
-    /**
-     * Get storage status from theme_validate
-     * 
-     * @return array
-     */
-    public function getStorageStatus()
-    {
-        // try {
-            // Lấy dữ liệu từ theme_validate
-            $themeData = $this->getThemeValidateData();
-
-            // $licenseData = $this->licenseService->getLicenseData();
-            
-            // Tính dung lượng hiện tại
-            $currentSize = $this->getCurrentStorageSize();
-
-            // Phân tích storage status
-            $result = $this->analyzeStorageStatus($currentSize, $themeData);
-            return $result;
-            
-        // } catch (Exception $e) {
-        //     Log::error('Simple storage check failed: ' . $e->getMessage());
-        //     return $this->getErrorStatus();
-        // }
-    }
     
     /**
      * Get theme_validate data
@@ -100,164 +66,6 @@ class SimpleStorageService
                 'setting_key' => $this->settingKey
             ]);
             return [];
-        }
-    }
-    
-    /**
-     * Get current storage size
-     * 
-     * @return int Size in bytes
-     */
-    private function getCurrentStorageSize()
-    {
-        try {
-            // Sử dụng phương pháp đơn giản nhất
-            $driver = config('app.storage_type') ?? config('SudoMedia.storage_type', 'do');
-            if ($driver == 'digitalocean') {
-                $driver = 'do';
-            }
-
-            if ($driver === 'local') {
-                return $this->getLocalStorageSize();
-            } else {
-                return $this->getCloudStorageSize();
-            }
-            
-        } catch (Exception $e) {
-            Log::warning('Cannot calculate storage size: ' . $e->getMessage());
-            return 0;
-        }
-    }
-    
-    /**
-     * Get local storage size using shell or PHP
-     * 
-     * @return int
-     */
-    private function getLocalStorageSize()
-    {
-        $basePath = public_path();
-        
-        // Try shell command first (faster)
-        if (function_exists('shell_exec') && PHP_OS_FAMILY !== 'Windows') {
-            $command = "du -sb " . escapeshellarg($basePath) . " 2>/dev/null | cut -f1";
-            $output = shell_exec($command);
-            
-            if ($output !== null && is_numeric(trim($output))) {
-                return (int) trim($output);
-            }
-        }
-        
-        // Fallback to PHP calculation
-        return $this->calculateDirectorySize($basePath);
-    }
-    
-    /**
-     * Simple directory size calculation
-     * 
-     * @param string $directory
-     * @param int $depth
-     * @return int
-     */
-    private function calculateDirectorySize($directory, $depth = 0)
-    {
-        if ($depth > 5 || !is_dir($directory)) {
-            return 0;
-        }
-        
-        $size = 0;
-        $excludeDirs = ['vendor', 'node_modules', '.git', 'storage/logs'];
-        
-        try {
-            $iterator = new \DirectoryIterator($directory);
-            
-            foreach ($iterator as $fileInfo) {
-                if ($fileInfo->isDot()) {
-                    continue;
-                }
-                
-                $relativePath = str_replace(public_path() . DIRECTORY_SEPARATOR, '', $fileInfo->getPathname());
-                
-                // Skip excluded directories
-                $skip = false;
-                foreach ($excludeDirs as $excludeDir) {
-                    if (strpos($relativePath, $excludeDir) === 0) {
-                        $skip = true;
-                        break;
-                    }
-                }
-                
-                if ($skip) {
-                    continue;
-                }
-                
-                if ($fileInfo->isFile()) {
-                    $size += $fileInfo->getSize();
-                } elseif ($fileInfo->isDir()) {
-                    $size += $this->calculateDirectorySize($fileInfo->getPathname(), $depth + 1);
-                }
-            }
-        } catch (Exception $e) {
-            // Silent fail
-        }
-        
-        return $size;
-    }
-    
-    /**
-     * Get cloud storage size (simplified)
-     * 
-     * @return int
-     */
-    private function getCloudStorageSize()
-    {
-        try {
-            $disk = getStorageDiskIDR();
-            // $files = $disk->allFiles();
-            $config = config("image-domain-replace.license.storage");
-            
-            $s3Client = new S3Client([
-                'region'  => $config['region'],
-                'endpoint'  => $config['endpoint'],
-                'version' => 'latest',
-                'credentials' => [
-                    'key'    => $config['key'],
-                    'secret' => $config['secret'],
-                ],
-                'use_path_style_endpoint' => env('AWS_USE_PATH_STYLE_ENDPOINT', false)
-            ]);
-
-            $bucket = $config['bucket'];
-            $size = 0;
-
-            $params = [
-                'Bucket' => $bucket,
-                'MaxKeys' => 1000,
-            ];
-
-            $size = 0;
-
-            do {
-                $result = $s3Client->listObjectsV2($params);
-
-                if (!empty($result['Contents'])) {
-                    foreach ($result['Contents'] as $obj) {
-                        $size += $obj['Size'];
-                    }
-                }
-
-                // Nếu còn trang tiếp theo → lấy ContinuationToken
-                if ($result['IsTruncated']) {
-                    $params['ContinuationToken'] = $result['NextContinuationToken'];
-                } else {
-                    break;
-                }
-
-            } while (true);
-
-            return $size;
-        } catch (Exception $e) {
-            return 0;
         }
     }
     
@@ -408,48 +216,105 @@ class SimpleStorageService
     }
     
     /**
-     * Get error status when something fails
-     * 
-     * @return array
-     */
-    private function getErrorStatus()
-    {
-        return [
-            'package' => 'unknown',
-            'current_size' => 0,
-            'current_size_formatted' => '0 B',
-            'storage_capacity' => 0,
-            'storage_capacity_formatted' => '0 B',
-            'total_storage' => 0,
-            'total_storage_formatted' => '0 B',
-            'available_space' => 0,
-            'available_space_formatted' => '0 B',
-            'usage_percentage' => 0,
-            'status' => 'error',
-            'is_warning' => false,
-            'is_full' => false,
-            'additional_storage' => [],
-            'messages' => [
-                'error' => 'Không thể kiểm tra dung lượng lúc này.'
-            ],
-            'last_checked' => date('c')
-        ];
-    }
-    
-    /**
      * Quick check if storage needs attention
+     * Sử dụng dữ liệu từ DB (storage_cdn) thay vì gọi S3
+     * Cache trong 1 ngày
      * 
      * @return array
      */
     public function quickCheck()
     {
-        $status = $this->getStorageStatus();
+        $cacheKey = 'storage_quick_check';
+        $cacheDuration = 86400; // 1 ngày = 86400 giây
         
-        return [
-            'needs_attention' => $status['is_warning'] || $status['is_full'] || !empty($status['additional_storage']['expiring_soon']),
-            'usage_percentage' => $status['usage_percentage'],
-            'status' => $status['status'],
-            'messages' => $status['messages']
-        ];
+        // Kiểm tra cache
+        // if (Cache::has($cacheKey)) {
+        //     return Cache::get($cacheKey);
+        // }
+        
+        try {
+            // Lấy dữ liệu từ theme_validate
+            $themeData = $this->getThemeValidateData();
+            
+            // Lấy current size từ storage_cdn trong DB thay vì gọi S3
+            $currentSize = $this->getStorageCdnFromDB();
+            
+            // Phân tích storage status
+            $result = $this->analyzeStorageStatus($currentSize, $themeData);
+            
+            // Tạo response
+            $response = [
+                'needs_attention' => $result['is_warning'] || $result['is_full'] || !empty($result['additional_storage']['expiring_soon']),
+                'usage_percentage' => $result['usage_percentage'],
+                'status' => $result['status'],
+                'messages' => $result['messages'],
+                'current_size' => $result['current_size'],
+                'current_size_formatted' => $result['current_size_formatted'],
+                'total_storage' => $result['total_storage'],
+                'total_storage_formatted' => $result['total_storage_formatted'],
+            ];
+            
+            // Cache kết quả trong 1 ngày
+            Cache::put($cacheKey, $response, $cacheDuration);
+            
+            return $response;
+            
+        } catch (Exception $e) {
+            Log::error('Quick check failed: ' . $e->getMessage());
+            return [
+                'needs_attention' => false,
+                'usage_percentage' => 0,
+                'status' => 'error',
+                'messages' => ['error' => 'Không thể kiểm tra dung lượng']
+            ];
+        }
+    }
+    
+    /**
+     * Lấy dung lượng CDN từ DB (key: storage_cdn)
+     * 
+     * @return int Size in bytes
+     */
+    private function getStorageCdnFromDB()
+    {
+        try {
+            $setting = null;
+            
+            // Kiểm tra bảng 'settings' trước
+            if (Schema::hasTable('settings')) {
+                $setting = DB::table('settings')
+                    ->where('key', 'storage_cdn')
+                    ->first();
+            }
+            
+            // Nếu không tìm thấy trong settings, kiểm tra bảng 'options'
+            if (!$setting && Schema::hasTable('options')) {
+                $setting = DB::table('options')
+                    ->where('name', 'storage_cdn')
+                    ->first();
+            }
+            
+            // Nếu không tìm thấy, trả về 0
+            if (!$setting) {
+                Log::warning('storage_cdn not found in database');
+                return 0;
+            }
+            
+            // Parse dữ liệu
+            $decoded = base64_decode($setting->value);
+            $data = json_decode($decoded, true);
+            
+            if (isset($data['size'])) {
+                return (int) $data['size'];
+            }
+            if(isset($data['size_bytes'])) {
+                return (int) $data['size_bytes'];
+            }
+            return 0;
+            
+        } catch (Exception $e) {
+            Log::error('Failed to get storage_cdn from DB: ' . $e->getMessage());
+            return 0;
+        }
     }
 }

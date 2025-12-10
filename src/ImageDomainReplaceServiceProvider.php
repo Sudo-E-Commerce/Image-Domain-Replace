@@ -27,11 +27,17 @@ class ImageDomainReplaceServiceProvider extends ServiceProvider
         $this->app->alias(SimpleStorageService::class, 'storage.simple');
         
         // Merge license config
-
         $this->mergeConfigFrom(__DIR__.'/../config/license.php', 'image-domain-replace.license');
         
         // Load views
         $this->loadViewsFrom(__DIR__.'/View', 'license');
+        
+        // Register commands
+        if ($this->app->runningInConsole()) {
+            $this->commands([
+                \Sudo\ImageDomainReplace\Console\CheckStorageCommand::class,
+            ]);
+        }
     }
 
     public function boot()
