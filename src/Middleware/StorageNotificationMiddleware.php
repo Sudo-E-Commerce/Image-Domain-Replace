@@ -296,7 +296,7 @@ class StorageNotificationMiddleware
             $title = $isFull ? 'Dung lượng website đã đầy' : 'Cảnh báo dung lượng website';
             
             // Inline CSS hoàn chỉnh, không phụ thuộc Bootstrap
-            $alertStyle = 'position: relative; z-index: 9999; padding: 15px 50px 15px 15px; ' .
+            $alertStyle = 'position: absolute; top: 0; right: 0; z-index: 9999; padding: 15px 50px 15px 15px; ' .
                          'background-color: ' . $bgColor . '; color: ' . $textColor . '; ' .
                          'border: 1px solid ' . $borderColor . '; border-left: 4px solid ' . $borderColor . '; ' .
                          'border-radius: 4px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; ' .
