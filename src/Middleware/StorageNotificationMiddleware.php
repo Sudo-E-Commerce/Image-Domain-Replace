@@ -16,6 +16,11 @@ class StorageNotificationMiddleware
      */
     public function handle(Request $request, Closure $next)
     {
+        // Kiểm tra xem có bật storage monitoring không
+        if (!env('STORAGE_MONITORING_ENABLED', false)) {
+            return $next($request);
+        }
+        
         // Auto sync storage nếu chưa chạy hôm nay (chỉ cho admin routes)
         if ($request->is('admin*')) {
             $this->autoSyncStorageIfNeeded();
@@ -291,7 +296,7 @@ class StorageNotificationMiddleware
             $title = $isFull ? 'Dung lượng website đã đầy' : 'Cảnh báo dung lượng website';
             
             // Inline CSS hoàn chỉnh, không phụ thuộc Bootstrap
-            $alertStyle = 'position: relative; z-index: 9999; margin: 15px; padding: 15px 50px 15px 15px; ' .
+            $alertStyle = 'position: relative; z-index: 9999; padding: 15px 50px 15px 15px; ' .
                          'background-color: ' . $bgColor . '; color: ' . $textColor . '; ' .
                          'border: 1px solid ' . $borderColor . '; border-left: 4px solid ' . $borderColor . '; ' .
                          'border-radius: 4px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; ' .
@@ -299,7 +304,15 @@ class StorageNotificationMiddleware
             
             $closeStyle = 'position: absolute; top: 10px; right: 15px; background: none; border: none; ' .
                          'font-size: 24px; font-weight: bold; line-height: 1; color: ' . $textColor . '; ' .
-                         'opacity: 0.5; cursor: pointer; padding: 0; width: 24px; height: 24px;';
+                         'opacity: 0.5; cursor: pointer; padding: 0; width: 24px; height: 24px; transition: opacity 0.2s;';
+            
+            $closeHoverScript = '<script>document.addEventListener("DOMContentLoaded", function() {
+                var closeBtn = document.querySelector(".storage-alert button");
+                if (closeBtn) {
+                    closeBtn.addEventListener("mouseenter", function() { this.style.opacity = "0.8"; });
+                    closeBtn.addEventListener("mouseleave", function() { this.style.opacity = "0.5"; });
+                }
+            });</script>';
             
             $titleStyle = 'margin: 0 0 10px 0; padding: 0; font-size: 16px; font-weight: bold; color: ' . $textColor . ';';
             
@@ -326,6 +339,7 @@ class StorageNotificationMiddleware
             }
             
             $html .= '</div>';
+            $html .= $closeHoverScript;
             
             return $html;
             
