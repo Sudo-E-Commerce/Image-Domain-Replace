@@ -85,6 +85,6 @@ LICENSE_MIDDLEWARE_ENABLED=false
 STORAGE_MONITORING_ENABLED=true
 
 là 3 biến để check lần lượt: 
-IMAGE_DOMAIN_REPLACE_ENABLED -> Check replace domain
+IMAGE_DOMAIN_REPLACE_ENABLED -> Check replace domain, mặc định true, 1 số dự án ảnh đặt ở local thì để là false.
 LICENSE_MIDDLEWARE_ENABLED -> Check Khoá website
 STORAGE_MONITORING_ENABLED -> Check Khoá dung lượng website

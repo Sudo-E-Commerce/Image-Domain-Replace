@@ -41,8 +41,8 @@ class ImageDomainReplaceMiddleware
 
     public function handle($request, Closure $next)
     {
-        // Kiểm tra xem có bật Image Domain Replace không
-        if (!env('IMAGE_DOMAIN_REPLACE_ENABLED', false)) {
+        // Kiểm tra xem có bật Image Domain Replace không, mặc định bật
+        if (!env('IMAGE_DOMAIN_REPLACE_ENABLED', true)) {
             return $next($request);
         }
         
