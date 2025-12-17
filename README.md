@@ -73,7 +73,18 @@ const imageHandler = new ImageDomainReplace({
 PR hoặc issue tại repo này.
 
 
-Lưu ý: Tất cả repo sử dụng se mbf cần thêm             'use_path_style_endpoint' => env('AWS_USE_PATH_STYLE_ENDPOINT', false)
+Lưu ý: Tất cả repo sử dụng se mbf cần thêm             
+'use_path_style_endpoint' => env('AWS_USE_PATH_STYLE_ENDPOINT', false)
 ở filesystem.php và 
 AWS_USE_PATH_STYLE_ENDPOINT=true
 ở .env
+
+
+IMAGE_DOMAIN_REPLACE_ENABLED=true
+LICENSE_MIDDLEWARE_ENABLED=false
+STORAGE_MONITORING_ENABLED=true
+
+là 3 biến để check lần lượt: 
+IMAGE_DOMAIN_REPLACE_ENABLED -> Check replace domain
+LICENSE_MIDDLEWARE_ENABLED -> Check Khoá website
+STORAGE_MONITORING_ENABLED -> Check Khoá dung lượng website
