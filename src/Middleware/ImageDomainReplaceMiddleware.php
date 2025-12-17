@@ -41,12 +41,11 @@ class ImageDomainReplaceMiddleware
 
     public function handle($request, Closure $next)
     {
-        // Kiểm tra xem có bật Image Domain Replace không, mặc định bật
+        // Kiểm tra xem có bật Image Domain Replace không, mặc định đang bật
         if (!env('IMAGE_DOMAIN_REPLACE_ENABLED', true)) {
             return $next($request);
         }
-        
-        dd(1);
+
         $this->newDomain = config('image-domain-replace.new_domain', 'your.newdomain.com');
         $response = $next($request);
 
