@@ -69,4 +69,5 @@ return [
         'url' => env('AWS_DOMAIN', env('DO_DOMAIN')),
         'domain' => env('AWS_DOMAIN', env('DO_DOMAIN')),
     ],
+    'app_url' => env('APP_URL', 'http://localhost'),
 ];

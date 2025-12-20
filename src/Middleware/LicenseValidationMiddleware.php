@@ -144,7 +144,7 @@ class LicenseValidationMiddleware
      */
     private function getCurrentDomain(Request $request): string
     {
-        return env('APP_URL') ? parse_url(env('APP_URL'), PHP_URL_HOST) : $request->getHost();
+        return config('license.app_url') ? parse_url(config('license.app_url'), PHP_URL_HOST) : $request->getHost();
     }
 
     /**
@@ -157,7 +157,7 @@ class LicenseValidationMiddleware
 
         // If license has specific domain, check it
         if (isset($licenseData['domain']) && !empty($licenseData['domain'])) {
-            if ($currentDomain !== $licenseData['domain']) {
+            if (!empty($currentDomain) && $currentDomain !== $licenseData['domain']) {
                 return [
                     'valid' => false,
                     'reason' => 'domain_mismatch',
@@ -170,7 +170,7 @@ class LicenseValidationMiddleware
         }
 
         // Check against config allowed host
-        if ($allowedHost && $currentDomain !== $allowedHost) {
+        if ( $allowedHost && !empty($currentDomain) && $currentDomain !== $allowedHost) {
             return [
                 'valid' => false,
                 'reason' => 'host_not_allowed',
