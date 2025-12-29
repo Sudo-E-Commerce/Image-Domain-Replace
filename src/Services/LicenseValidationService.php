@@ -225,7 +225,6 @@ class LicenseValidationService
                 $setting = DB::table('settings')
                     ->where('key', $this->settingKey)
                     ->first();
-                Log::debug('Checked settings table', ['found' => !is_null($setting)]);
             }
             
             // Nếu không tìm thấy trong settings, kiểm tra bảng 'options'
@@ -233,7 +232,6 @@ class LicenseValidationService
                 $setting = DB::table('options')
                     ->where('name', $this->settingKey)
                     ->first();
-                Log::debug('Checked options table', ['found' => !is_null($setting)]);
             }
             
             // Nếu không tìm thấy record nào
