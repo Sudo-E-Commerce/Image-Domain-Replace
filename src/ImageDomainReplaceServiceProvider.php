@@ -77,25 +77,18 @@ class ImageDomainReplaceServiceProvider extends ServiceProvider
         $functionFile = __DIR__.'/helpers/function.php';
         if (file_exists($functionFile)) {
             require_once $functionFile;
-            \Log::info('Loaded function.php helper');
-        } else {
-            \Log::warning('function.php not found at: ' . $functionFile);
         }
         
         // Load license helpers
         $licenseFile = __DIR__.'/helpers/license.php';
         if (file_exists($licenseFile)) {
             require_once $licenseFile;
-            \Log::info('Loaded license.php helper');
-        } else {
-            \Log::warning('license.php not found at: ' . $licenseFile);
         }
         
         // Load storage helpers
         $storageFile = __DIR__.'/helpers/storage.php';
         if (file_exists($storageFile)) {
             require_once $storageFile;
-            \Log::info('Loaded storage.php helper');
         }
         
         // License validation boot logic

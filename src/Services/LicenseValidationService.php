@@ -23,37 +23,17 @@ class LicenseValidationService
     public function updateLicense(array $data)
     {
         try {
-            Log::info('LicenseValidationService: Starting license update', [
-                'data_keys' => array_keys($data),
-                'setting_key' => $this->settingKey,
-                'raw_data' => $data
-            ]);
-
             // Xử lý dữ liệu theo logic từ license.md
             $processedData = $this->processLicenseData($data);
             
-            Log::info('Processed license data', [
-                'processed_data' => $processedData
-            ]);
-            
             // Encode dữ liệu
             $encodedData = base64_encode(json_encode($processedData));
-            
-            Log::info('Encoded license data', [
-                'encoded_length' => strlen($encodedData),
-                'json_error' => json_last_error_msg()
-            ]);
             
             // Cập nhật hoặc tạo setting
             $this->updateOrCreateSetting($this->settingKey, $encodedData);
             
             // Clear cache và các tác vụ liên quan
             $this->clearCacheAndRefresh();
-            
-            Log::info('License data updated successfully', [
-                'setting_key' => $this->settingKey,
-                'data_length' => strlen($encodedData)
-            ]);
             
             return $encodedData;
             
@@ -151,10 +131,6 @@ class LicenseValidationService
     protected function processLicenseData(array $data)
     {
         try {
-            Log::info('processLicenseData: Starting data processing', [
-                'input_keys' => array_keys($data)
-            ]);
-            
             // Loại bỏ các trường không cần thiết theo license.md
             $unset = ['_token', 'redirect', 'setLanguage'];
             foreach ($unset as $value) {
@@ -163,10 +139,6 @@ class LicenseValidationService
             
             // XSS protection - sử dụng fallback an toàn
             $data = $this->removeScriptArrayFallback($data);
-            
-            Log::info('processLicenseData: Data processing completed', [
-                'output_keys' => array_keys($data)
-            ]);
             
             return $data;
             
@@ -266,17 +238,11 @@ class LicenseValidationService
             
             // Nếu không tìm thấy record nào
             if (!$setting) {
-                Log::info('No license data found in any table');
                 return [];
             }
             
             // Decode dữ liệu
             $decodedData = json_decode(base64_decode($setting->value), true);
-            
-            Log::info('License data retrieved successfully', [
-                'data_keys' => array_keys($decodedData ?: []),
-                'data_length' => strlen($setting->value)
-            ]);
             
             return $decodedData ?: [];
             
@@ -301,22 +267,13 @@ class LicenseValidationService
     protected function updateOrCreateSetting($key, $value)
     {
         try {
-            Log::info('updateOrCreateSetting called', [
-                'key' => $key,
-                'value_type' => gettype($value),
-                'value_length' => is_string($value) ? strlen($value) : 'not_string',
-                'is_base64' => is_string($value) && base64_encode(base64_decode($value, true)) === $value
-            ]);
-            
             // Kiểm tra bảng 'settings' trước (ưu tiên)
             if (Schema::hasTable('settings')) {
-                Log::info('Using settings table for license storage');
                 return $this->updateSettingsTable($key, $value);
             }
             
             // Nếu không có bảng 'settings', kiểm tra bảng 'options'
             if (Schema::hasTable('options')) {
-                Log::info('Using options table for license storage');
                 return $this->updateOptionsTable($key, $value);
             }
             
@@ -340,13 +297,6 @@ class LicenseValidationService
     protected function updateSettingsTable($key, $value)
     {
         try {
-            Log::info('updateSettingsTable called', [
-                'key' => $key,
-                'value_type' => gettype($value),
-                'value_is_string' => is_string($value),
-                'value_sample' => is_string($value) ? substr($value, 0, 100) . '...' : $value
-            ]);
-            
             $exists = DB::table('settings')->where('key', $key)->exists();
             
             if ($exists) {
@@ -355,14 +305,12 @@ class LicenseValidationService
                     ->update([
                         'value' => $value,
                     ]);
-                Log::info('Updated existing record in settings table', ['key' => $key]);
             } else {
                 DB::table('settings')->insert([
                     'key' => $key,
                     'locale' => '',
                     'value' => $value,
                 ]);
-                Log::info('Created new record in settings table', ['key' => $key]);
             }
             
         } catch (Exception $e) {
@@ -511,7 +459,6 @@ class LicenseValidationService
             try {
                 Artisan::call('sudo:clear');
             } catch (Exception $e) {
-                Log::info('sudo:clear command not found, skipping');
             }
             
             // Trigger ClearCacheEvent nếu có

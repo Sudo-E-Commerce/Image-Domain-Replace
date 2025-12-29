@@ -44,12 +44,9 @@ if (!function_exists('checkOrCreateInBucketIDR')) {
             
             // Step 4: Process resize image
             $resizeImagePath = getResizeImagePathIDR($url);
-            Log::info('Processing image', [
-                'resize_path' => $resizeImagePath,
-            ]);
+            
             // Create resized image if it doesn't exist
             if (!$upload->exists($resizeImagePath)) {
-                Log::info('Creating resized image from: ' . $originalPath);
                 createResizedImageIDR($originalPath, $resizeImagePath, $size, $upload);
             }
             
@@ -63,8 +60,6 @@ if (!function_exists('checkOrCreateInBucketIDR')) {
                 if ($upload->exists($resizeWebpPath)) {
                     $finalUrl =  rtrim($awsDomain, '/'). '/' . ltrim($resizeWebpPath, '/');
                     return $finalUrl;
-                } else {
-                    Log::warning('Failed to create resized WebP, falling back to resized image');
                 }
             }
             
@@ -147,16 +142,8 @@ if (!function_exists('createResizedImageIDR')) {
     function createResizedImageIDR($originalUrl, $resizeLink, $size, $upload)
     {
         try {
-            // Log the attempt
-            Log::info('Creating resized image', [
-                'original_url' => $originalUrl,
-                'resize_link' => $resizeLink,
-                'size' => $size
-            ]);
-
             // Check if resized image already exists
             if ($upload->exists($resizeLink)) {
-                Log::info('Resized image already exists: ' . $resizeLink);
                 return;
             }
 
@@ -187,12 +174,6 @@ if (!function_exists('createResizedImageIDR')) {
             $originalWidth = $image->width();
             $originalHeight = $image->height();
             
-            Log::info('Original image dimensions', [
-                'width' => $originalWidth,
-                'height' => $originalHeight,
-                'target_size' => $size
-            ]);
-
             // Only resize if image is larger than target size
             if ($originalWidth > $size) {
                 $image->widen($size, function ($constraint) {
@@ -216,12 +197,6 @@ if (!function_exists('createResizedImageIDR')) {
 
             // Upload to storage
             $result = $upload->put($resizeLink, $imageResize->__toString(), 'public');
-
-            if ($result) {
-                Log::info('Successfully created resized image: ' . $resizeLink);
-            } else {
-                Log::error('Failed to upload resized image: ' . $resizeLink);
-            }
 
         } catch (\Exception $e) {
             Log::error('Error in createResizedImage', [
@@ -252,19 +227,15 @@ if (!function_exists('checkOrCreateWebpIDR')) {
                 return $url;
             }
             $webpLink = preg_replace('/\.(jpg|jpeg|png|gif)$/i', '.webp', getResizeImagePathIDR($url));
-            Log::info('WebP path: ' . $webpLink);
 
             // Check if WebP image already exists
             if ($upload->exists($webpLink)) {
-                Log::info('WebP image already exists: ' . $webpLink);
                 // Return the new domain URL even if image exists
                 $newUrl = $newDomain . '/' . $webpLink;
-                Log::info('Returning existing WebP image URL: ' . $newUrl);
                 return $newUrl;
             }
 
             $originalUrl = getOriginalImageUrlIDR($url, $newDomain);
-            Log::info('Original URL for WebP processing: ' . $originalUrl);
 
             // Create WebP image
             createWebpImageIDR($originalUrl, $webpLink, $upload);
@@ -272,7 +243,6 @@ if (!function_exists('checkOrCreateWebpIDR')) {
             // Verify the WebP image was created successfully
             if ($upload->exists($webpLink)) {
                 $newUrl = $newDomain . '/' . $webpLink;
-                Log::info('Successfully created and verified WebP image, returning: ' . $newUrl);
                 return $newUrl;
             } else {
                 Log::error('WebP image was not created successfully: ' . $webpLink);
@@ -281,8 +251,6 @@ if (!function_exists('checkOrCreateWebpIDR')) {
 
         } catch (\Exception $e) {
             Log::error('Error in checkOrCreateWebP for image: ' . $url);
-            Log::error('Error message: ' . $e->getMessage());
-            Log::error('Stack trace: ' . $e->getTraceAsString());
             return $url;
         }
     }
@@ -292,12 +260,6 @@ if (!function_exists('createWebpImageIDR')) {
     function createWebpImageIDR($originalUrl, $webpLink, $upload)
     {
         try {
-            // Log the attempt
-            Log::info('Creating WebP image', [
-                'original_url' => $originalUrl,
-                'webp_link' => $webpLink
-            ]);
-
             $awsDomain = config('filesystems.disks.s3.domain') ?? config('filesystems.disks.do.domain', '');
             $originalUrl = str_replace($awsDomain, '', $originalUrl);
             $originalUrl = ltrim($originalUrl, '/');
@@ -320,12 +282,6 @@ if (!function_exists('createWebpImageIDR')) {
             $imageWebp = $image->encode('webp', $quality);
             // Upload to storage
             $result = $upload->put($webpLink, $imageWebp->__toString(), 'public');
-
-            if ($result) {
-                Log::info('Successfully created WebP image: ' . $webpLink);
-            } else {
-                Log::error('Failed to upload WebP image: ' . $webpLink);
-            }
 
         } catch (\Exception $e) {
             Log::error('Error in createWebpImage', [

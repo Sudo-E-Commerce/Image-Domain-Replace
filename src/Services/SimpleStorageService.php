@@ -53,10 +53,6 @@ class SimpleStorageService
             // Decode dữ liệu
             $decodedData = json_decode(base64_decode($setting->value), true);
             
-            Log::info('License data retrieved successfully', [
-                'data_keys' => array_keys($decodedData ?: []),
-                'data_length' => strlen($setting->value)
-            ]);
             
             return $decodedData ?: [];
             

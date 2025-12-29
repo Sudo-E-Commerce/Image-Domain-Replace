@@ -63,12 +63,9 @@ class LicenseController extends Controller
             $result = $this->licenseService->updateLicense($licenseData);
 
             if ($result) {
-                Log::info('[License API] License updated successfully', $licenseData);
-                
                 // Clear cache if configured
                 if (config('image-domain-replace.license.auto_clear_cache', true)) {
                     Artisan::call('cache:clear');
-                    Log::info('[License API] Cache cleared after license update');
                 }
 
                 return response()->json([

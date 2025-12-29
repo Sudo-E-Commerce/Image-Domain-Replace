@@ -123,8 +123,6 @@ class StorageNotificationMiddleware
             // Lưu cache để không chạy lại trong ngày
             \Cache::put($cacheKey, $today, 86400); // Cache 24h
             
-            \Log::info('Storage auto-synced successfully', ['date' => $today]);
-            
         } catch (\Exception $e) {
             \Log::error('Auto sync storage failed: ' . $e->getMessage());
         }
@@ -214,8 +212,6 @@ class StorageNotificationMiddleware
                     ]);
                 }
             }
-            
-            \Log::info('Storage CDN saved to DB', ['size' => $size]);
             
         } catch (\Exception $e) {
             \Log::error('Save storage_cdn to DB failed: ' . $e->getMessage());
