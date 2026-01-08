@@ -60,7 +60,7 @@ class ImageController extends Controller
                 $imageUrl = getOriginalImageUrlIDR($request->input('imageUrl', ''));
                 return response()->json([
                     'success' => false,
-                    'fallbackImageUrl' => rtrim($awsDomain, '/'). '/' . ltrim($imageUrl, '/'),
+                    'fallbackImageUrl' => rtrim($awsDomain, '/'). '/' . ltrim($imageUrl, '/') . '?v=' . time(),
                     'message' => 'Image URL is required'
                 ], 400, $headers);
             }
@@ -83,7 +83,7 @@ class ImageController extends Controller
             return response()->json([
                 'success' => true,
                 'request' => $imageUrl,
-                'fallbackImageUrl' => $fallbackImageUrl,
+                'fallbackImageUrl' => $fallbackImageUrl . '?v=' . time(),
                 'message' => $fileExists ? 'Image processed successfully' : 'Using default fallback image'
             ], 200, $headers);
 
