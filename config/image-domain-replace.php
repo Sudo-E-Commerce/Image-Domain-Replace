@@ -5,4 +5,9 @@ return [
     'queue_bucket_check' => false, // Nếu true sẽ dùng queue để check/tạo ảnh bucket
     'fallback_image' => env('IMAGE_DOMAIN_REPLACE_FALLBACK', '/vendor/core/core/base/img/placeholder.png'), // Compatible with existing script.js
     'regex_patterns' => env('IMAGE_REGEX_PATTERNS', ''), // Các pattern regex để nhận diện domain cũ, phân cách nhau bởi dấu phẩy. Ví dụ: resize,cdn,storage,karofi,img
+
+    // S3 Backup Mode - Dự phòng khi CDN/Mobifone sập
+    // Bật S3_BACKUP_MODE_ENABLED=true → tất cả image chuyển sang R2 storage
+    's3_backup_enabled' => env('S3_BACKUP_MODE_ENABLED', false),
+    's3_backup_domain' => env('S3_BACKUP_DOMAIN', 'https://storage.sudospaces.com'),
 ];

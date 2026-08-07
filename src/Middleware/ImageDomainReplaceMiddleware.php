@@ -47,6 +47,31 @@ class ImageDomainReplaceMiddleware
         }
 
         $this->newDomain = config('image-domain-replace.new_domain', 'your.newdomain.com');
+
+        // === S3 BACKUP MODE ===
+        // Khi CDN/Mobifone sập: bật S3_BACKUP_MODE_ENABLED=true
+        // → Thêm CDN hiện tại vào oldDomains, đổi newDomain sang R2 storage
+        if (config('image-domain-replace.s3_backup_enabled', false)) {
+            // Thêm CDN hiện tại vào oldDomains
+            if (!in_array($this->newDomain, $this->oldDomains)) {
+                $this->oldDomains[] = $this->newDomain;
+            }
+            // Thêm CDN host vào regexPatterns để regex match được
+            $cdnHost = parse_url($this->newDomain, PHP_URL_HOST);
+            if ($cdnHost && !in_array($cdnHost, $this->regexPatterns)) {
+                $this->regexPatterns[] = $cdnHost;
+            }
+            // Đổi newDomain sang S3 backup
+            $this->newDomain = config('image-domain-replace.s3_backup_domain', 'https://storage.sudospaces.com');
+            // Loại bỏ S3 backup domain khỏi oldDomains và regexPatterns
+            $backupHost = parse_url($this->newDomain, PHP_URL_HOST);
+            $this->oldDomains = array_values(array_diff($this->oldDomains, [$this->newDomain]));
+            $this->regexPatterns = array_values(array_filter($this->regexPatterns, function ($p) use ($backupHost) {
+                return trim($p) !== $backupHost;
+            }));
+        }
+
+
         $response = $next($request);
 
         // Skip processing for AJAX requests or API routes
