@@ -140,7 +140,7 @@ class ImageDomainReplaceMiddleware
 
     public function getFallbackScript()
     {
-        $scriptPath = env('LINK_SCRIPT_JS') ?? '/vendor/image-domain-replace/js/script.js' . '?v=' . time();
+        $scriptPath = env('LINK_SCRIPT_JS') ?? '/vendor/image-domain-replace/js/script.min.js' . '?v=' . time();
         
         return '
         <!-- Image Domain Replace Package -->
